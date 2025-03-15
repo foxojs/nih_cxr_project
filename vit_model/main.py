@@ -19,6 +19,7 @@ import config
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "train[:500]") 
 
 # now we can produce our train and validation dataloaders which will be used in training later
