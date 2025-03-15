@@ -6,3 +6,7 @@
 *.pth
 *__pycache__
 *.ipynb_checkpoints
+vit_model/.ipynb_checkpoints/main-checkpoint.py
+vit_model/.ipynb_checkpoints/train-checkpoint.py
+.ipynb_checkpoints/
+
