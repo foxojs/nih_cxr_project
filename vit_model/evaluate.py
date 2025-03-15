@@ -1,7 +1,23 @@
 from dataset import MultiLabelDataset
 from sklearn.metrics import multilabel_confusion_matrix
+from datasets import load_dataset
+import torch 
+import torch.nn as nn
+from model import ViT
+import matplotlib.pyplot as plt 
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
+import tqdm 
+import os 
+import numpy as np 
+import pandas as pd
+from sklearn.metrics import accuracy_score
+import config 
+import seaborn as sns
 
-ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "test[:500]")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "test[:100]")
 
 # Get class label mapping from Hugging Face dataset
 label_list = ds_test.features['labels'].feature.names  # List of string labels
@@ -11,6 +27,7 @@ num_classes = len(label_list)
 all_true_labels = []
 all_pred_labels = []
 
+model = ViT()
 
 # Load the saved state dictionary
 model.load_state_dict(torch.load("../trained_models/best_model.pth", map_location=device))

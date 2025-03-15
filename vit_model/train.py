@@ -4,6 +4,7 @@ import torch.nn as nn
 from tqdm import tqdm
 import config
 from sklearn.metrics import accuracy_score
+import numpy as np 
 
 def train(model, optimizer, loader, device, loss_fn, loss_logger):
 
@@ -46,7 +47,7 @@ def train(model, optimizer, loader, device, loss_fn, loss_logger):
 
     return model, optimizer, loss_logger
 
-from sklearn.metrics import accuracy_score
+
 def evaluate(model, device, loader):
 
     # Initialise counter

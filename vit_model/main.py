@@ -7,8 +7,19 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset
 from tqdm import tqdm, trange
 from datasets import Dataset
+import torch.nn as nn
+from torch.utils.data import Dataset
+from sklearn.metrics import accuracy_score
+import pandas as pd
+from sklearn.metrics import multilabel_confusion_matrix
+import os 
+import seaborn as sns
+import torch.optim as optim 
+import config 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "train[:500]") 
 
 # now we can produce our train and validation dataloaders which will be used in training later
 training_dataset_class = MultiLabelDataset(ds_train, image_size = (128, 128)) # make sure to have the channel dimension
@@ -25,7 +36,12 @@ training_dataset_class.mode = "val"
 print(f" the size of validation data is: {len(training_dataset_class)}")
 val_dataloader = DataLoader(training_dataset_class, batch_size = 4, shuffle = True)
 model = ViT().to(device)
+
 optimizer = torch.optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
+
+lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, 
+                                                    T_max = config.NUM_EPOCHS, 
+                                                    eta_min = 0)
 loss_fn = nn.BCEWithLogitsLoss()
 
 # now the training process
@@ -40,7 +56,7 @@ best_model_path = "../trained_models/best_model.pth"  # Path to save the best mo
 
 # this implements training loop
 
-pbar = trange(0, num_epochs, leave= True, desc = "epoch")
+pbar = trange(0, config.NUM_EPOCHS, leave= True, desc = "epoch")
 
 for epoch in pbar:
     valid_acc = 0
