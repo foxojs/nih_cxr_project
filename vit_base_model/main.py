@@ -146,8 +146,12 @@ def compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels):
     precision_list, recall_list, f1_list, accuracy_list = [], [], [], []
 
     # Compute per-class precision, recall, f1-score, accuracy
+    cm_data = []
     for i, label in enumerate(label_list):
         tn, fp, fn, tp = multi_cm[i].ravel()  # Extract TN, FP, FN, TP
+
+        # save the tn, fp, fn, tp for each class in a df 
+        cm_data.append([label, tp, fp, tn, fn])
 
         # Compute Metrics
         precision = tp / (tp + fp + 1e-8)  # Avoid division by zero
@@ -165,6 +169,8 @@ def compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels):
     exact_match = accuracy_score(all_true_labels, all_pred_labels)  # Computes exact match accuracy
 
     # Create DataFrame
+    cm_data = pd.DataFrame(cm_data, columns = ['Class', 'tp', 'fp', 'tn', 'fn'])
+
     df_metrics = pd.DataFrame({
         "Class": label_list,
         "Precision": precision_list,
@@ -175,7 +181,7 @@ def compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels):
     df_metrics.loc[len(df_metrics)] = ["Exact Match Accuracy", "", "", "", exact_match]
 
 
-    return df_metrics 
+    return df_metrics, cm_data
 
 def evaluate_model(results_folder, device):
     logger = setup_logging(os.path.join(results_folder, "evaluation.log"))
@@ -223,13 +229,16 @@ def evaluate_model(results_folder, device):
     logger.info(f"confusion matrices saved in: {plots_folder}")
 
     # compute evaluation matrices 
-    df_metrics = compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels)
+    df_metrics, cm_data = compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels)
 
     # save metrics 
-    metrics_folder = os.path.join(results_folder, "df_metrics")
+    metrics_folder = os.path.join(results_folder, "evaluation_metrics")
     os.makedirs(metrics_folder, exist_ok = True)
     metrics_file = os.path.join(metrics_folder, "df_metrics_overall.csv")
+    cm_metrics_file = os.path.join(metrics_folder, "cm_metrics_file.csv")
+    cm_data.to_csv(cm_metrics_file, index = False)
     df_metrics.to_csv(metrics_file, index = False)
+
 
     logger.info(f"Evaluation metrics saved to: {metrics_file}")
     logger.info("Evaluation process complete")
