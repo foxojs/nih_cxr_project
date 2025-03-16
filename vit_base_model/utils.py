@@ -1,53 +1,37 @@
-import torch
-import torch.optim as optim
-import torch.nn as nn
-from tqdm import tqdm
-import config
+import torch 
+import tqdm 
+import numpy as np 
 from sklearn.metrics import accuracy_score
 
-def train(model, optimizer, loader, device, loss_fn, loss_logger):
+def extract_patches(image_tensor, patch_size = 4):
+    """Converts images to patches for input to a vision transformer"""
 
-    # set network in train mode
+    
+    bs, c, h, w = image_tensor.size()
 
-    model.train()
+    # define teh unfold layer with appropriate parameters 
 
-    total_loss = 0
-    num_batches = 0
+    unfold = torch.nn.Unfold(kernel_size = patch_size, stride = patch_size)
 
-    for i, batch in enumerate(tqdm(loader, leave = True, desc = "training")):
-        # forward pass of image through network and get output 
+    unfolded = unfold(image_tensor)
 
-        x = batch['image']
-        y = batch['labels']
+    # reshape the unfolded tensor to match the desired output shape 
+    # output shaep BS x L x C x 8 x8 where L is the number of patches in each dimension 
+    # fo reach dimension, number of patches = (original dimension size) //patch_size 
 
-        fx = model(x.to(device))
+    unfolded = unfolded.transpose(1, 2).reshape(bs, -1, c * patch_size * patch_size)
 
-        # calculate loss using loss function 
+    return unfolded
 
-        loss = loss_fn(fx, y.float().to(device)) # this requires correct float 
 
-        # zero gradients 
 
-        optimizer.zero_grad()
-
-        # back propagate
-
-        loss.backward()
-
-        # single optimisation step 
-
-        optimizer.step()
-
-        total_loss += loss.item()
-        num_batches += 1
-        
-    avg_loss = total_loss / num_batches if num_batches > 0 else 0  # Compute epoch loss
-    loss_logger.append(avg_loss)  # Store epoch loss
-
-    return model, optimizer, loss_logger
-
-from sklearn.metrics import accuracy_score
 def evaluate(model, device, loader):
+    """evaluates a model and returns exact accuracy for a single epoch 
+    args: 
+    - model = a trained model 
+    - device = where the data and model are stored 
+    - loader = train/test/validation loader 
+    """
 
     # Initialise counter
     epoch_acc = 0
@@ -63,6 +47,8 @@ def evaluate(model, device, loader):
         epoch_predicted_labels = []
         epoch_ground_truth_labels = []
 
+        # we need to iterate over the loader to get the overall batch accuracy 
+
         for i, batch in enumerate(tqdm(loader, leave=True, desc="Evaluating")):
 
                 x = batch['image']
@@ -70,7 +56,9 @@ def evaluate(model, device, loader):
                 # Forward pass of image through network
                 fx = model(x.to(device))
 
+                # we are using a threshold of 0.5, probably something to tune 
                 preds = (torch.sigmoid(fx) > 0.5).float()
+                
                 # Log the cumulative sum of the acc
 
                 epoch_predicted_labels.append(preds.cpu().numpy())
@@ -81,10 +69,5 @@ def evaluate(model, device, loader):
         y_pred_np = np.vstack(epoch_predicted_labels)
 
         exact_acc = accuracy_score(y_true_np, y_pred_np)
-
-
-
-
-
     # Return the accuracy from the epoch
     return exact_acc

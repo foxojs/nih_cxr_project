@@ -49,6 +49,12 @@ def train(model, optimizer, loader, device, loss_fn, loss_logger):
 
 
 def evaluate(model, device, loader):
+    """evaluates a model and returns exact accuracy for a single epoch 
+    args: 
+    - model = a trained model 
+    - device = where the data and model are stored 
+    - loader = train/test/validation loader 
+    """
 
     # Initialise counter
     epoch_acc = 0
@@ -64,6 +70,8 @@ def evaluate(model, device, loader):
         epoch_predicted_labels = []
         epoch_ground_truth_labels = []
 
+        # we need to iterate over the loader to get the overall batch accuracy 
+
         for i, batch in enumerate(tqdm(loader, leave=True, desc="Evaluating")):
 
                 x = batch['image']
@@ -71,7 +79,9 @@ def evaluate(model, device, loader):
                 # Forward pass of image through network
                 fx = model(x.to(device))
 
+                # we are using a threshold of 0.5, probably something to tune 
                 preds = (torch.sigmoid(fx) > 0.5).float()
+                
                 # Log the cumulative sum of the acc
 
                 epoch_predicted_labels.append(preds.cpu().numpy())
@@ -82,10 +92,5 @@ def evaluate(model, device, loader):
         y_pred_np = np.vstack(epoch_predicted_labels)
 
         exact_acc = accuracy_score(y_true_np, y_pred_np)
-
-
-
-
-
     # Return the accuracy from the epoch
     return exact_acc

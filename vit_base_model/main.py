@@ -7,8 +7,28 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset
 from tqdm import tqdm, trange
 from datasets import Dataset
+import torch.nn as nn
+from torch.utils.data import Dataset
+from sklearn.metrics import accuracy_score
+import pandas as pd
+from sklearn.metrics import multilabel_confusion_matrix
+import os 
+import seaborn as sns
+import torch.optim as optim 
+import config 
+import os 
+
+# create an incrementing results folder for this run 
+os.makedirs(config.RESULTS_PATH, exist_ok = True)
+new_run = max((int(f.split('_')[-1]) for f in os.listdir(config.RESULTS_PATH) 
+               if f.startswith("results_") and f.split('_')[-1].isdigit()), default=0) + 1
+new_folder = os.path.join(config.RESULTS_PATH, f"results_{new_run}")
+os.makedirs(new_folder)
+print(f"Results are being saved to: {new_folder}")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "train[:500]") 
 
 # now we can produce our train and validation dataloaders which will be used in training later
 training_dataset_class = MultiLabelDataset(ds_train, image_size = (128, 128)) # make sure to have the channel dimension
@@ -24,8 +44,15 @@ train_dataloader = DataLoader(training_dataset_class, batch_size = 4, shuffle = 
 training_dataset_class.mode = "val"
 print(f" the size of validation data is: {len(training_dataset_class)}")
 val_dataloader = DataLoader(training_dataset_class, batch_size = 4, shuffle = True)
+
+
 model = ViT().to(device)
+
 optimizer = torch.optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
+
+lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, 
+                                                    T_max = config.NUM_EPOCHS, 
+                                                    eta_min = 0)
 loss_fn = nn.BCEWithLogitsLoss()
 
 # now the training process
@@ -34,13 +61,11 @@ training_loss_logger = []
 validation_acc_logger = []
 training_acc_logger = []
 best_val_accuracy = 0
-best_model_path = "../trained_models/best_model.pth"  # Path to save the best model
-
-
+best_model_path = "../vit_base_model/best_model.pth"  # Path to save the best model
 
 # this implements training loop
 
-pbar = trange(0, num_epochs, leave= True, desc = "epoch")
+pbar = trange(0, config.NUM_EPOCHS, leave= True, desc = "epoch")
 
 for epoch in pbar:
     valid_acc = 0
@@ -58,9 +83,7 @@ for epoch in pbar:
 
     train_acc = evaluate(model = model, device = device, loader = train_dataloader)
     valid_acc = evaluate(model = model, device = device, loader = val_dataloader) # note we are using exact match accuracy
-
-
-
+    
     # log the train and validation accuracies
 
     validation_acc_logger.append(valid_acc)
