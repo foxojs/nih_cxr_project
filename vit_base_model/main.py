@@ -9,9 +9,10 @@ from torch.utils.data import DataLoader
 from torch import nn, optim
 from tqdm import tqdm 
 import numpy as np 
-from sklearn.metrics import multilabel_confusion_matrix, accuracy_score
+from sklearn.metrics import multilabel_confusion_matrix, accuracy_score, roc_curve, auc
 import matplotlib.pyplot as plt 
 import seaborn as sns 
+import json 
 
 # Import custom modules
 from dataset import MultiLabelDataset
@@ -203,7 +204,7 @@ def evaluate_model(results_folder, device):
     test_dataloader = DataLoader(test_dataset_class, batch_size=config.BATCH_SIZE, shuffle = False)
 
     all_true_labels = []
-    all_pred_labels = []
+    all_pred_probs = []
 
     with torch.no_grad():
         for batch in tqdm(test_dataloader, leave = True, desc = "Processing test batches"):
@@ -211,13 +212,37 @@ def evaluate_model(results_folder, device):
             batch_labels = batch['labels']
 
             fx = model(batch_image.to(device))
-            pred = (torch.sigmoid(fx) > 0.5).float()
+            probs = torch.sigmoid(fx).cpu().numpy()
             all_true_labels.append(batch_labels.cpu().numpy())
-            all_pred_labels.append(pred.cpu().numpy())
+            all_pred_probs.append(probs.cpu().numpy())
 
         # convert lists to full numpy arrays 
     all_true_labels = np.vstack(all_true_labels)
-    all_pred_labels = np.vstack(all_pred_labels)
+    all_pred_labels = np.vstack(all_pred_probs)
+
+    # now compute the roc/auc for each class 
+
+    roc_results = {}
+
+    for i, label in enumerate(label_list):
+        fpr, tpr, thresholds = roc_curve(all_true_labels[:, i], all_pred_probs[:, i])
+        auc_score = auc(fpr, tpr)
+
+        roc_results[label] = {
+            "fpr":fpr.tolist(), 
+            "tpr": tpr.tolist(), 
+            "thresholds": thresholds.tolist(), 
+            "auc": auc_score
+        }
+
+    roc_folder = os.path.join(results_folder, "roc_data")
+    os.makedirs(roc_folder, exist_ok = True)
+    roc_file = os.path.join(roc_folder, "roc_results.json")
+
+    with open(roc_file, "w") as f:
+        json.dump(roc_results, f, indent = 4)
+
+    logger.info(f"ROC data saved to: {roc_file}")
 
     multi_cm = multilabel_confusion_matrix(all_true_labels, all_pred_labels)
     plots_folder = os.path.join(results_folder, "plots/confusion_matrices")
