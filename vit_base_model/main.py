@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from torch import nn, optim
 from tqdm import tqdm 
 import numpy as np 
-from sklearn.metrics import multilabel_confusion_matrix, accuracy_score, roc_curve, auc
+from sklearn.metrics import multilabel_confusion_matrix, accuracy_score, roc_curve, auc, f1_score
 import matplotlib.pyplot as plt 
 import seaborn as sns 
 import json 
@@ -142,7 +142,7 @@ def plot_and_save_confusion_matrix(cm, class_name, save_path):
     plt.close()  # Close the figure to free memory
 
 
-def compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels):
+def compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels, optimal_thresholds):
     # Initialize lists to store per-class metrics
     precision_list, recall_list, f1_list, accuracy_list = [], [], [], []
 
@@ -152,7 +152,7 @@ def compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels):
         tn, fp, fn, tp = multi_cm[i].ravel()  # Extract TN, FP, FN, TP
 
         # save the tn, fp, fn, tp for each class in a df 
-        cm_data.append([label, tp, fp, tn, fn])
+        cm_data.append([label, tp, fp, tn, fn, optimal_thresholds[label]])
 
         # Compute Metrics
         precision = tp / (tp + fp + 1e-8)  # Avoid division by zero
@@ -170,7 +170,7 @@ def compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels):
     exact_match = accuracy_score(all_true_labels, all_pred_labels)  # Computes exact match accuracy
 
     # Create DataFrame
-    cm_data = pd.DataFrame(cm_data, columns = ['Class', 'tp', 'fp', 'tn', 'fn'])
+    cm_data = pd.DataFrame(cm_data, columns = ['Class', 'tp', 'fp', 'tn', 'fn', 'optimal_threshold'])
 
     df_metrics = pd.DataFrame({
         "Class": label_list,
@@ -214,25 +214,39 @@ def evaluate_model(results_folder, device):
             fx = model(batch_image.to(device))
             probs = torch.sigmoid(fx).cpu().numpy()
             all_true_labels.append(batch_labels.cpu().numpy())
-            all_pred_probs.append(probs.cpu().numpy())
+            all_pred_probs.append(probs)
 
         # convert lists to full numpy arrays 
     all_true_labels = np.vstack(all_true_labels)
-    all_pred_labels = np.vstack(all_pred_probs)
+    all_pred_probs = np.vstack(all_pred_probs)
 
     # now compute the roc/auc for each class 
 
     roc_results = {}
+    optimal_thresholds = {}
 
     for i, label in enumerate(label_list):
         fpr, tpr, thresholds = roc_curve(all_true_labels[:, i], all_pred_probs[:, i])
         auc_score = auc(fpr, tpr)
 
+        # find the threshold that maximises the f1 score 
+
+        f1_scores = []
+        for threshold in thresholds: 
+            pred_labels = (all_pred_probs[:, 1] >= threshold).astype(int)
+            f1 = f1_score(all_true_labels[:, 1], pred_labels)
+            f1_scores.append(f1)
+
+        optimal_idx = np.argmax(f1_scores)
+        optimal_threshold = thresholds[optimal_idx]
+        optimal_thresholds[label] = float(optimal_threshold)
+
         roc_results[label] = {
             "fpr":fpr.tolist(), 
             "tpr": tpr.tolist(), 
             "thresholds": thresholds.tolist(), 
-            "auc": auc_score
+            "auc": auc_score, 
+            "optimal_threshold": float(optimal_threshold)
         }
 
     roc_folder = os.path.join(results_folder, "roc_data")
@@ -244,7 +258,16 @@ def evaluate_model(results_folder, device):
 
     logger.info(f"ROC data saved to: {roc_file}")
 
+    # now we use the optimal threshold to compute the multi label confusion matrix and associated metrics for each class 
+
+    all_pred_labels = np.zeros_like(all_pred_probs) #gives same array structure 
+    for i, label in enumerate(label_list): 
+        all_pred_labels[:, i] = (all_pred_probs[:, i] >= optimal_thresholds[label])
+
+    # using this optimal threshold (for f1 score) compute the matrix 
+
     multi_cm = multilabel_confusion_matrix(all_true_labels, all_pred_labels)
+
     plots_folder = os.path.join(results_folder, "plots/confusion_matrices")
     os.makedirs(plots_folder, exist_ok = True)
 
@@ -254,7 +277,7 @@ def evaluate_model(results_folder, device):
     logger.info(f"confusion matrices saved in: {plots_folder}")
 
     # compute evaluation matrices 
-    df_metrics, cm_data = compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels)
+    df_metrics, cm_data = compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels, optimal_thresholds)
 
     # save metrics 
     metrics_folder = os.path.join(results_folder, "evaluation_metrics")
