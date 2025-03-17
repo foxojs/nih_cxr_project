@@ -11,4 +11,5 @@ vit_model/.ipynb_checkpoints/train-checkpoint.py
 .ipynb_checkpoints/
 
 *.log
+vit_base_model/results
 
