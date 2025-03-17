@@ -320,6 +320,8 @@ if __name__ == "__main__":
 
     results_folder = create_results_folder()
 
+
+
     # Device selection
     if torch.backends.mps.is_available():  # Check for Apple MPS (Mac GPUs)
         device = torch.device("mps")
