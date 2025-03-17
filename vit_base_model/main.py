@@ -13,6 +13,7 @@ from sklearn.metrics import multilabel_confusion_matrix, accuracy_score, roc_cur
 import matplotlib.pyplot as plt 
 import seaborn as sns 
 import json 
+import time 
 
 # Import custom modules
 from dataset import MultiLabelDataset
@@ -108,6 +109,8 @@ def train_model(results_folder, device):
     pbar = trange(0, config.NUM_EPOCHS, leave=True, desc="Epoch")
 
     for epoch in pbar:
+        start_time = time.time()
+
         # Train
         model, optimizer, training_loss_logger = train(
             model=model,
@@ -122,6 +125,9 @@ def train_model(results_folder, device):
         train_acc = evaluate(model=model, device=device, loader=train_loader)
         valid_acc = evaluate(model=model, device=device, loader=val_loader)
 
+        end_time = time.time()
+
+        print(f"time for epoch was {start_time - end_time}")
         # Log results
         training_acc_logger.append(train_acc)
         validation_acc_logger.append(valid_acc)
