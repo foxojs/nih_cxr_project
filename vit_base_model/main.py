@@ -320,7 +320,16 @@ if __name__ == "__main__":
 
     results_folder = create_results_folder()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Device selection
+    if torch.backends.mps.is_available():  # Check for Apple MPS (Mac GPUs)
+        device = torch.device("mps")
+        print("Using Apple Metal (MPS) backend")
+    elif torch.cuda.is_available():  # Check for NVIDIA GPU (CUDA)
+        device = torch.device("cuda")
+        print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
+    else:
+        device = torch.device("cpu")
+        print("Using CPU (No GPU available)")
 
     train_model(results_folder, device)
 
