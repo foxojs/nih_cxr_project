@@ -105,7 +105,7 @@ def train_model(results_folder, device):
     training_loss_logger = []
     validation_acc_logger = []
     training_acc_logger = []
-    best_val_accuracy = 0
+    best_f1 = 0
 
     pbar = trange(0, config.NUM_EPOCHS, leave=True, desc="Epoch")
 
@@ -123,24 +123,24 @@ def train_model(results_folder, device):
         )
 
         # Evaluate
-        train_acc = evaluate(model=model, device=device, loader=train_loader)
-        valid_acc = evaluate(model=model, device=device, loader=val_loader)
+        train_macro_f1 = evaluate(model=model, device=device, loader=train_loader)
+        valid_macro_f1 = evaluate(model=model, device=device, loader=val_loader)
 
         end_time = time.time()
 
         print(f"time for epoch was {start_time - end_time}")
         logger.info(f"time for epoch was {end_time - start_time}")
         # Log results
-        training_acc_logger.append(train_acc)
-        validation_acc_logger.append(valid_acc)
-        pbar.set_postfix_str(f"Train Acc: {train_acc:.2%}, Val Acc: {valid_acc:.2%}")
-        logger.info(f"Epoch {epoch+1}: Train Acc: {train_acc:.4f}, Val Acc: {valid_acc:.4f}")
+        training_acc_logger.append(train_macro_f1)
+        validation_acc_logger.append(valid_macro_f1)
+        pbar.set_postfix_str(f"Train F1 Macro: {train_macro_f1:.2%}, Val F1 Macro: {valid_macro_f1:.2%}")
+        logger.info(f"Epoch {epoch+1}: Train F1 Macro: {train_macro_f1:.4f}, Val F1 Macro: {valid_macro_f1:.4f}")
 
         # Save best model
-        if valid_acc >= best_val_accuracy:
-            best_val_accuracy = valid_acc
+        if valid_macro_f1 >= best_f1:
+            best_f1 = valid_macro_f1
             torch.save(model.state_dict(), best_model_path)
-            logger.info(f"New best model saved with validation accuracy: {valid_acc:.4f}")
+            logger.info(f"New best model saved with validation f1 macro: {valid_macro_f1:.4f}")
 
         # Adjust learning rate
         lr_scheduler.step()

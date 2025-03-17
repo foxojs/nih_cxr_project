@@ -1,7 +1,7 @@
 import torch 
 import tqdm 
 import numpy as np 
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
 
 def extract_patches(image_tensor, patch_size = 4):
     """Converts images to patches for input to a vision transformer"""
@@ -68,6 +68,6 @@ def evaluate(model, device, loader):
         y_true_np = np.vstack(epoch_ground_truth_labels)
         y_pred_np = np.vstack(epoch_predicted_labels)
 
-        exact_acc = accuracy_score(y_true_np, y_pred_np)
+        macro_f1 = f1_score(y_true_np, y_pred_np, average = "macro")
     # Return the accuracy from the epoch
-    return exact_acc
+    return macro_f1
