@@ -13,4 +13,3 @@ MODEL_SAVE_PATH = "../trained_models/best_model.pth"
 TRAINING_LOGS_PATH = "results/training_logs.csv"
 CONFUSION_MATRIX_PATH = "results/plots/confusion_matrices"
 METRICS_CSV_PATH = "results/df/df_metrics_overall.csv"
-MACBOOK_PRO = True
