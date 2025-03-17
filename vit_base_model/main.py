@@ -327,6 +327,8 @@ def evaluate_model(results_folder, device):
 # Run the training process
 if __name__ == "__main__":
 
+    main_start_time = time.time()
+
     results_folder = create_results_folder()
 
 
@@ -345,3 +347,7 @@ if __name__ == "__main__":
     train_model(results_folder, device)
 
     evaluate_model(results_folder, device)
+
+    main_end_time = time.time()
+
+    print(f"overall time taken: {main_end_time - main_start_time}")
