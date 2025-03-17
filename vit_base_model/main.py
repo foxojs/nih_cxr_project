@@ -19,6 +19,26 @@ from dataset import MultiLabelDataset
 from model import ViT
 from train import train, evaluate
 
+def save_config(results_folder):
+    config_values = pd.DataFrame({
+        "IMAGE_SIZE":config.IMAGE_SIZE,
+        "PATCH_SIZE": config.PATCH_SIZE,
+        "HIDDEN_SIZE": config.HIDDEN_SIZE,
+        "NUM_LAYERS": config.NUM_LAYERS,
+        "NUM_HEADS": config.NUM_HEADS,
+        "NUM_CLASSES": config.NUM_CLASSES,
+        "BATCH_SIZE": config.BATCH_SIZE,
+        "LEARNING_RATE": config.LEARNING_RATE,
+        "NUM_EPOCHS": config.NUM_EPOCHS
+    })
+
+    config_file = os.path.join(results_folder, "run_configuration.csv")
+    config_values.to_csv(config_file, index = False)
+
+    
+
+
+
 # Function to create an incrementing results folder
 def create_results_folder():
     os.makedirs(config.RESULTS_PATH, exist_ok=True)
@@ -27,6 +47,9 @@ def create_results_folder():
          if f.startswith("results_") and f.split('_')[-1].isdigit()), default=0) + 1
     new_folder = os.path.join(config.RESULTS_PATH, f"results_{new_run}")
     os.makedirs(new_folder, exist_ok=True)
+
+    # save our configuration
+    save_config(results_folder=new_folder)
     return new_folder
 
 # Function to configure logging inside the results folder
