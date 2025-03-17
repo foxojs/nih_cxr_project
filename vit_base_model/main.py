@@ -106,7 +106,7 @@ def train_model(results_folder, device):
         logger.info(f"Epoch {epoch+1}: Train Acc: {train_acc:.4f}, Val Acc: {valid_acc:.4f}")
 
         # Save best model
-        if valid_acc > best_val_accuracy:
+        if valid_acc >= best_val_accuracy:
             best_val_accuracy = valid_acc
             torch.save(model.state_dict(), best_model_path)
             logger.info(f"New best model saved with validation accuracy: {valid_acc:.4f}")
