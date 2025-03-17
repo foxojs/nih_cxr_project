@@ -16,3 +16,4 @@ shell_scripts/nih_cxr.*
 shell_scripts/nih_cxr_gpu.*
 vit_base_model/config.py
 shell_scripts/
+data_exploration/tensorboard_logs/
