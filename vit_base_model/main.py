@@ -68,7 +68,7 @@ def setup_logging(log_file):
 
 # Function to prepare dataset and dataloaders
 def prepare_dataloaders():
-    ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split="train[:2000]")
+    ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split=config.DS_TRAIN_SIZE)
     dataset = MultiLabelDataset(ds_train, image_size=config.IMAGE_SIZE)
     dataset.train_validation_split()
 
@@ -78,7 +78,7 @@ def prepare_dataloaders():
     dataset.mode = "val"
     val_loader = DataLoader(dataset, batch_size=config.BATCH_SIZE, shuffle=True)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, dataset
 
 # Main training function
 def train_model(results_folder, device):
@@ -86,13 +86,14 @@ def train_model(results_folder, device):
     log_file = os.path.join(results_folder, "training.log")
     logger = setup_logging(log_file)
     logger.info(f"Results are being saved to: {results_folder}")
+    logger.info(f"Training device is {device}")
 
     best_model_path = os.path.join(results_folder, "best_model.pth")
 
     # Load data
-    train_loader, val_loader = prepare_dataloaders()
-    logger.info(f"Training data size: {len(train_loader.dataset)}")
-    logger.info(f"Validation data size: {len(val_loader.dataset)}")
+    train_loader, val_loader, dataset = prepare_dataloaders()
+    logger.info(f"Training data size: {len(dataset)}")
+
 
     # Initialize model, optimizer, and loss function
     model = ViT().to(device)
@@ -128,6 +129,7 @@ def train_model(results_folder, device):
         end_time = time.time()
 
         print(f"time for epoch was {start_time - end_time}")
+        logger.info(f"time for epoch was {end_time - start_time}")
         # Log results
         training_acc_logger.append(train_acc)
         validation_acc_logger.append(valid_acc)
@@ -216,6 +218,7 @@ def compute_metrics(label_list, multi_cm, all_true_labels, all_pred_labels, opti
 def evaluate_model(results_folder, device):
     logger = setup_logging(os.path.join(results_folder, "evaluation.log"))
     logger.info("Starting evaluation...")
+    logger.info(f"device is {device}")
 
     # load test dataset
     ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split="test[:1000]")

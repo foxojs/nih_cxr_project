@@ -42,7 +42,7 @@ class MultiLabelDataset(Dataset):
             image = image/255
 
             if image.shape[0] == 1:
-                image = image.repeat(1, 1, 1) # for convolutional networks we need 3 channels, remove this line and line below if wanting 1024, 1024 shape
+                image = image.repeat(3, 1, 1) # for convolutional networks we need 3 channels, remove this line and line below if wanting 1024, 1024 shape
 
             # image = image.permute(1, 2, 0) # channel dimension needs to be the last one, not first
 
