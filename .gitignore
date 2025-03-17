@@ -12,4 +12,5 @@ vit_model/.ipynb_checkpoints/train-checkpoint.py
 
 *.log
 vit_base_model/results
-
+shell_scripts/nih_cxr.*
+shell_scripts/nih_cxr_gpu.*
