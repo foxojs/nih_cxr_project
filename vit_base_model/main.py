@@ -103,8 +103,8 @@ def train_model(results_folder, device):
 
     # Training process
     training_loss_logger = []
-    validation_acc_logger = []
-    training_acc_logger = []
+    validation_f1_logger = []
+    training_f1_logger = []
     best_f1 = 0
 
     pbar = trange(0, config.NUM_EPOCHS, leave=True, desc="Epoch")
@@ -131,8 +131,8 @@ def train_model(results_folder, device):
         print(f"time for epoch was {start_time - end_time}")
         logger.info(f"time for epoch was {end_time - start_time}")
         # Log results
-        training_acc_logger.append(train_macro_f1)
-        validation_acc_logger.append(valid_macro_f1)
+        training_f1_logger.append(train_macro_f1)
+        validation_f1_logger.append(valid_macro_f1)
         pbar.set_postfix_str(f"Train F1 Macro: {train_macro_f1:.2%}, Val F1 Macro: {valid_macro_f1:.2%}")
         logger.info(f"Epoch {epoch+1}: Train F1 Macro: {train_macro_f1:.4f}, Val F1 Macro: {valid_macro_f1:.4f}")
 
@@ -150,8 +150,8 @@ def train_model(results_folder, device):
     # Save logs
     training_logs = pd.DataFrame({
         "training_loss": training_loss_logger,
-        "validation_accuracy": validation_acc_logger,
-        "training_accuracy": training_acc_logger
+        "validation_f1_macro": validation_f1_logger,
+        "training_f1_macro": training_f1_logger
     })
     training_logs.to_csv(os.path.join(results_folder, "training_logs.csv"), index=False)
     logger.info(f"Training logs saved to {results_folder}/training_logs.csv")
