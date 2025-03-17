@@ -2,6 +2,9 @@ import torch
 import tqdm 
 import numpy as np 
 from sklearn.metrics import f1_score
+import config 
+from dataset import MultiLabelDataset
+import os 
 
 def extract_patches(image_tensor, patch_size = 4):
     """Converts images to patches for input to a vision transformer"""
@@ -71,3 +74,4 @@ def evaluate(model, device, loader):
         macro_f1 = f1_score(y_true_np, y_pred_np, average = "macro")
     # Return the accuracy from the epoch
     return macro_f1
+

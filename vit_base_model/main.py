@@ -265,8 +265,8 @@ def evaluate_model(results_folder, device):
 
         f1_scores = []
         for threshold in thresholds: 
-            pred_labels = (all_pred_probs[:, 1] >= threshold).astype(int)
-            f1 = f1_score(all_true_labels[:, 1], pred_labels)
+            pred_labels = (all_pred_probs[:, i] >= threshold).astype(int)
+            f1 = f1_score(all_true_labels[:, i], pred_labels)
             f1_scores.append(f1)
 
         optimal_idx = np.argmax(f1_scores)
