@@ -68,14 +68,14 @@ def setup_logging(log_file):
 # Function to prepare dataset and dataloaders
 def prepare_dataloaders():
     ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split="train[:2000]")
-    dataset = MultiLabelDataset(ds_train, image_size=(128, 128))
+    dataset = MultiLabelDataset(ds_train, image_size=config.IMAGE_SIZE)
     dataset.train_validation_split()
 
     dataset.mode = "train"
-    train_loader = DataLoader(dataset, batch_size=4, shuffle=True)
+    train_loader = DataLoader(dataset, batch_size=config.BATCH_SIZE, shuffle=True)
 
     dataset.mode = "val"
-    val_loader = DataLoader(dataset, batch_size=4, shuffle=True)
+    val_loader = DataLoader(dataset, batch_size=config.BATCH_SIZE, shuffle=True)
 
     return train_loader, val_loader
 
