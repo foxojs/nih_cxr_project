@@ -44,7 +44,7 @@ def setup_logging(log_file):
 
 # Function to prepare dataset and dataloaders
 def prepare_dataloaders():
-    ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split="train[:500]")
+    ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split="train[:2000]")
     dataset = MultiLabelDataset(ds_train, image_size=(128, 128))
     dataset.train_validation_split()
 
@@ -189,7 +189,7 @@ def evaluate_model(results_folder, device):
     logger.info("Starting evaluation...")
 
     # load test dataset
-    ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split="test[:100]")
+    ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split="test[:1000]")
     label_list = ds_test.features['labels'].feature.names
 
     model_path = os.path.join(results_folder, "best_model.pth")
