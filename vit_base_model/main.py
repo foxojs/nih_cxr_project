@@ -221,7 +221,7 @@ def evaluate_model(results_folder, device):
     logger.info(f"device is {device}")
 
     # load test dataset
-    ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split="test[:1000]")
+    ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split=config.DS_TEST_SIZE)
     label_list = ds_test.features['labels'].feature.names
 
     model_path = os.path.join(results_folder, "best_model.pth")
