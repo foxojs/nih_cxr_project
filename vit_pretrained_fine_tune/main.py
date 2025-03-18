@@ -32,10 +32,10 @@ from sklearn.metrics import classification_report
 from custom_datasets import nih_cxr_datamodule
 
 
-ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "train[:5000]") 
+ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "train[:8000]") 
 
 # we hold back our test data to be used purely for testing, not in the context of our training loop 
-ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "test[:2000]") 
+ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "test[:3000]") 
 
 
 ViTForImageClassification.from_pretrained("google/vit-base-patch16-224", 
@@ -75,7 +75,7 @@ def main(args):
     logger = CSVLogger("tensorboard_logs", name = 'nih_cxr_pretrained_vit')
 
     #train 
-    trainer = L.Trainer(devices = 1, max_epochs = 5, callbacks = [early_stopping], logger =logger)
+    trainer = L.Trainer(devices = 1, max_epochs = 8, callbacks = [early_stopping], logger =logger)
     trainer.fit(model = model, train_dataloaders=train_dataloader, val_dataloaders = valid_dataloader)
 
     # evaluate on the test set 

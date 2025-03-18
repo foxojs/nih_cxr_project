@@ -126,7 +126,7 @@ class nih_cxr_datamodule(L.LightningDataModule):
                                  v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                 ])
         
-        ds_train = load_dataset(self.data_root, 'image-classification', split = "train[:500]")
+        ds_train = load_dataset(self.data_root, 'image-classification', split = "train[:8000]")
 
         train_valid_split = ds_train.train_test_split(test_size = 0.2)
 
@@ -134,7 +134,7 @@ class nih_cxr_datamodule(L.LightningDataModule):
         ds_valid = train_valid_split['test']
 
  
-        ds_test = load_dataset(self.data_root, 'image-classification', split = "test[:200]") 
+        ds_test = load_dataset(self.data_root, 'image-classification', split = "test[:3000]") 
 
         self.train_data = HuggingFaceCXR(ds_train, image_size = (224, 224), transform = transforms)
         self.valid_data = HuggingFaceCXR(ds_valid, image_size = (224, 224), transform = transforms)
@@ -142,11 +142,11 @@ class nih_cxr_datamodule(L.LightningDataModule):
 
 
     def train_dataloader(self): 
-        return DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True)
+        return DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, num_workers=12)
     
     def valid_dataloader(self): 
-        return DataLoader(dataset = self.valid_data, batch_size = self.batch_size, shuffle = False)
+        return DataLoader(dataset = self.valid_data, batch_size = self.batch_size, shuffle = False, num_workers=12)
     
     def test_dataloader(self):
-        return DataLoader(self.test_data, batch_size = self.batch_size, shuffle = False)
+        return DataLoader(self.test_data, batch_size = self.batch_size, shuffle = False, num_workers=12)
         
