@@ -2,7 +2,6 @@ from datasets import load_dataset
 from tqdm import tqdm
 from datasets import Dataset
 import torch 
-import matplotlib.pyplot as plt 
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
@@ -16,7 +15,6 @@ from sklearn.metrics import accuracy_score
 import pandas as pd
 from sklearn.metrics import multilabel_confusion_matrix
 import os 
-import seaborn as sns
 from PIL import Image
 from transformers import ViTForImageClassification
 from torch.nn import functional as F
