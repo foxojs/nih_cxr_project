@@ -52,6 +52,8 @@ import torchmetrics
 import lightning as L
 from model_architectures import VisionTransformerPretrained
 from evaluation import multi_label_evaluation
+import config 
+
 
 
 import lightning as L
@@ -61,7 +63,7 @@ class HuggingFaceCXR(Dataset):
     Custom PyTorch Dataset wrapper for Hugging Face datasets.
     Converts dataset samples into a PyTorch-compatible format.
     """
-    def __init__(self, hf_dataset, image_size, num_classes=15, transform=None):
+    def __init__(self, hf_dataset, image_size=config.IMAGE_SIZE, num_classes=config.NUM_CLASSES, transform=None):
         self.dataset = hf_dataset.with_format("torch")  # Ensure dataset is in torch format
         self.image_size = image_size
         self.num_classes = num_classes
@@ -106,23 +108,23 @@ class HuggingFaceCXR(Dataset):
 class nih_cxr_datamodule(L.LightningDataModule):
     '''Lightning data module for the cxr dataset'''
 
-    def __init__(self, batch_size, data_root="alkzar90/NIH-Chest-X-ray-dataset"): 
+    def __init__(self, batch_size=config.BATCH_SIZE, data_root="alkzar90/NIH-Chest-X-ray-dataset"): 
         super().__init__()
         self.data_root = data_root
         self.batch_size = batch_size 
-        self.num_classes = 15
+        self.num_classes = config.NUM_CLASSES
 
     def setup(self, stage = None):
         '''set up the dataset, train/valid/test all at once'''
 
         transforms = v2.Compose([v2.ToImage(),
-                                 v2.Resize(size=(224,224), interpolation=2),
+                                 v2.Resize(size=config.IMAGE_SIZE, interpolation=2),
                                  v2.Grayscale(num_output_channels=3), # need to ensure 3 channel grayscale for vit 
                                  v2.ToDtype(torch.float32, scale=True),
                                  v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                 ])
         
-        ds_train = load_dataset(self.data_root, 'image-classification', split = "train[:8000]")
+        ds_train = load_dataset(self.data_root, 'image-classification', split = config.DS_TRAIN_SIZE)
 
         train_valid_split = ds_train.train_test_split(test_size = 0.2)
 
@@ -130,19 +132,23 @@ class nih_cxr_datamodule(L.LightningDataModule):
         ds_valid = train_valid_split['test']
 
  
-        ds_test = load_dataset(self.data_root, 'image-classification', split = "test[:3000]") 
+        ds_test = load_dataset(self.data_root, 'image-classification', split = config.DS_TEST_SIZE) 
 
-        self.train_data = HuggingFaceCXR(ds_train, image_size = (224, 224), transform = transforms)
-        self.valid_data = HuggingFaceCXR(ds_valid, image_size = (224, 224), transform = transforms)
-        self.test_data = HuggingFaceCXR(ds_test, image_size = (224, 224), transform = transforms)
+        self.train_data = HuggingFaceCXR(ds_train, image_size = config.IMAGE_SIZE, transform = transforms)
+        self.valid_data = HuggingFaceCXR(ds_valid, image_size = config.IMAGE_SIZE, transform = transforms)
+        self.test_data = HuggingFaceCXR(ds_test, image_size = config.IMAGE_SIZE, transform = transforms)
 
 
     def train_dataloader(self): 
-        return DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, num_workers=12)
+        return DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, 
+                          num_workers=config.NUM_WORKERS, persistent_workers=True)
     
     def valid_dataloader(self): 
-        return DataLoader(dataset = self.valid_data, batch_size = self.batch_size, shuffle = False, num_workers=12)
+        return DataLoader(dataset = self.valid_data, batch_size = self.batch_size, shuffle = False, 
+                          num_workers=config.NUM_WORKERS, persistent_workers=True)
     
     def test_dataloader(self):
-        return DataLoader(self.test_data, batch_size = self.batch_size, shuffle = False, num_workers=12)
+        return DataLoader(self.test_data, batch_size = self.batch_size, 
+                          shuffle = False, num_workers=config.NUM_WORKERS, 
+                          persistent_workers=True)
         
