@@ -1,12 +1,15 @@
-from sklearn.metrics import classification_report, roc_auc_score, f1_score
+from sklearn.metrics import classification_report, roc_auc_score, f1_score, roc_curve, precision_recall_curve, auc
 import torch 
 import os 
 import numpy as np 
 from tqdm import tqdm 
 import pandas as pd 
+from sklearn.metrics import accuracy_score
 
 def multi_label_evaluation(model, test_dataloader, test_dataset, logger): 
     model.eval()
+    log_dir = logger.log_dir
+    os.makedirs(log_dir, exist_ok = True)
 
     all_true_labels = []
     all_pred_logits = []
@@ -27,54 +30,64 @@ def multi_label_evaluation(model, test_dataloader, test_dataset, logger):
     # compute auc per label (remember labels are in the same order as our 1d one hot encoded array)
 
     auc_per_label = {}
-    for i, label in enumerate(label_list):
-        try:
-            auc_per_label[label] = roc_auc_score(all_true_labels[:, i], all_pred_logits[:, i])
-        except ValueError:
-            auc_per_label[label] = np.nan
-    log_dir = logger.log_dir
-    os.makedirs(log_dir, exist_ok = True)
-
-    auc_path = os.path.join(log_dir, "auc_per_label.csv")
-    auc_df = pd.DataFrame(list(auc_per_label.items()), columns=['label', 'auc_roc'])
-    auc_df.to_csv(auc_path, index = False)
-
-
-
-    # now we try and find our best threshold for each label 
+    pr_auc_per_label = {}
+    f1_per_label = {}
     best_thresholds = {}
     thresholds_to_test = np.linspace(0, 1, 10)
 
-    for i, label in enumerate(label_list):
-        best_f1 = 0
-        best_t = 0
 
-        for t in thresholds_to_test:
-            preds = (all_pred_logits[:, i] >= t).astype(int) # apply threshold t to class i 
-            f1 = f1_score(all_true_labels[:, i], preds)
+    for i, label in tqdm(enumerate(label_list), desc="Evaluating AUC, ROC, PR"):
+        try:
+            # ROC 
+            fpr, tpr, _ = roc_curve(all_true_labels[:, i], all_pred_logits[:, i])
+            auc_per_label[label] = roc_auc_score(all_true_labels[:, i], all_pred_logits[:, i])
+            pd.DataFrame({'fpr': fpr, 'tpr': tpr}).to_csv(os.path.join(log_dir, f"roc_curve_{label}.csv"), index=False)
             
-            if f1 > best_f1:
-                best_f1 = f1
-                best_t = t # store the best threshold for this class 
-        
-        best_thresholds[label] = best_t
+            # Precision-Recall curve (imbalanced dataset)
+            precision, recall, _ = precision_recall_curve(all_true_labels[:, i], all_pred_logits[:, i])
+            pr_auc_per_label[label] = auc(recall, precision)
+            pd.DataFrame({'precision': precision, 'recall': recall}).to_csv(os.path.join(log_dir, f"pr_curve_{label}.csv"), index=False)
 
-    # save micro f1 scores 
-    log_dir = logger.log_dir
+            # find best threshold using f1 score 
+            best_f1, best_t = 0, 0 
+            for t in thresholds_to_test:
+                preds = (all_pred_logits[:, i] >= t).astype(int)
+                f1 = f1_score(all_true_labels[:, i], preds)
+                if f1 > best_f1: 
+                    best_f1 = f1
+                    best_t = t
+            
+            best_thresholds[label] = best_t
+            f1_per_label[label] = best_f1
 
-    os.makedirs(log_dir, exist_ok = True)
-    threshold_path = os.path.join(log_dir, "best_thresholds_per_label.csv")
-    pd.DataFrame(list(best_thresholds.items()), columns = ['label', 'best_threshold']).to_csv(threshold_path, index = False)
-   
-    # now select the threshold that gave the highest micro average  
+        except ValueError:
+            auc_per_label[label] = np.nan
+            pr_auc_per_label[label] = np.nan
+            best_thresholds[label] = np.nan
+            f1_per_label[label] = np.nan # If AUC cannot be computed (e.g., only one class present)
 
+    # Save AUC-ROC, PR AUC, Best Thresholds, and F1 Scores
+    pd.DataFrame(list(auc_per_label.items()), columns=['label', 'auc_roc']).to_csv(os.path.join(log_dir, "auc_per_label.csv"), index=False)
+    pd.DataFrame(list(pr_auc_per_label.items()), columns=['label', 'pr_auc']).to_csv(os.path.join(log_dir, "pr_auc_per_label.csv"), index=False)
+    pd.DataFrame(list(best_thresholds.items()), columns=['label', 'best_threshold']).to_csv(os.path.join(log_dir, "best_thresholds_per_label.csv"), index=False)
+    pd.DataFrame(list(f1_per_label.items()), columns=['label', 'best_f1_score']).to_csv(os.path.join(log_dir, "best_f1_scores_per_label.csv"), index=False)
+
+
+    # Apply Best Thresholds to Generate Final Predictions
     all_pred_labels = np.zeros_like(all_pred_logits)
     for i, label in enumerate(label_list):
         all_pred_labels[:, i] = (all_pred_logits[:, i] >= best_thresholds[label]).astype(int)
 
-    report_path = os.path.join(log_dir, "test_multi_metrics_per_label_threshold.csv")
+
+    # Save Classification Report
     final_report = classification_report(all_true_labels, all_pred_labels, target_names=label_list, zero_division=0, output_dict=True)
-    pd.DataFrame(final_report).to_csv(report_path)
+    pd.DataFrame(final_report).to_csv(os.path.join(log_dir, "test_multi_metrics_per_label_threshold.csv"))
+
+    # Compute and Save Exact Match Accuracy
+    exact_match_accuracy = accuracy_score(all_true_labels, all_pred_labels)
+    with open(os.path.join(log_dir, "exact_match_accuracy.txt"), "w") as f:
+        f.write(f"Exact Match Accuracy: {exact_match_accuracy:.4f}\n")
+    print(f"Exact Match Accuracy: {exact_match_accuracy:.4f}")
 
 
 

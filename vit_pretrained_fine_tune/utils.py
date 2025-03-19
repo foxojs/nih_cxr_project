@@ -3,13 +3,12 @@ import tqdm
 import numpy as np 
 from sklearn.metrics import f1_score
 import config 
-from dataset import MultiLabelDataset
 import os 
 import pandas as pd
 import logging
 from datasets import load_dataset
 
-def save_config(results_folder):
+def save_config(logger):
     config_values = pd.DataFrame({
         "IMAGE_SIZE":config.IMAGE_SIZE,
         "PATCH_SIZE": config.PATCH_SIZE,
@@ -22,7 +21,10 @@ def save_config(results_folder):
         "NUM_EPOCHS": config.NUM_EPOCHS
     })
 
-    config_file = os.path.join(results_folder, "run_configuration.csv")
+    log_dir = logger.log_dir
+    os.makedirs(log_dir, exist_ok = True)
+
+    config_file = os.path.join(log_dir, "run_configuration.csv")
     config_values.to_csv(config_file, index = False)
 
 

@@ -27,6 +27,8 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.loggers import CSVLogger
 from sklearn.metrics import classification_report
 from custom_datasets import nih_cxr_datamodule
+import config 
+from utils import save_config
 
 
 ds_train = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "train[:1000]") 
@@ -48,6 +50,7 @@ ViTForImageClassification.from_pretrained("google/vit-base-patch16-224",
 def main(args): 
     L.seed_everything(42)
 
+
     # set up data 
     datamodule = nih_cxr_datamodule(batch_size=8)
     datamodule.prepare_data()
@@ -60,12 +63,12 @@ def main(args):
     # setup model 
     model = VisionTransformerPretrained('google/vit-base-patch16-224', datamodule.num_classes, learning_rate= 1e-4)
 
-    early_stopping = EarlyStopping(monitor = 'valid_acc', patience = 6, mode = 'max')
+    early_stopping = EarlyStopping(monitor = 'exact_accuracy', patience = 6, mode = 'max')
 
     logger = CSVLogger("tensorboard_logs", name = 'nih_cxr_pretrained_vit')
 
     #train 
-    trainer = L.Trainer(devices = 1, max_epochs = 8, callbacks = [early_stopping], logger =logger)
+    trainer = L.Trainer(devices = 1, max_epochs = config.NUM_EPOCHS, callbacks = [early_stopping], logger =logger)
     trainer.fit(model = model, train_dataloaders=train_dataloader, val_dataloaders = valid_dataloader)
 
     # evaluate on the test set 
@@ -74,6 +77,8 @@ def main(args):
 
     multi_label_evaluation(model, test_dataloader = test_dataloader, 
                            test_dataset = ds_test, logger = logger)
+    
+    save_config(logger)
         
 
 if __name__ == "__main__":

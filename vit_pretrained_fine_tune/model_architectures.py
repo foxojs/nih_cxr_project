@@ -20,6 +20,7 @@ from transformers import ViTForImageClassification
 from torch.nn import functional as F
 from torch import optim 
 import torchmetrics 
+from torcheval.metrics import MultilabelAccuracy
 
 import lightning as L
 
@@ -41,7 +42,7 @@ class VisionTransformerPretrained(L.LightningModule):
 
         #metrics 
 
-        self.acc = torchmetrics.Accuracy("multilabel", num_labels=num_classes, threshold = 0.5)
+        self.acc = MultilabelAccuracy(threshold = 0.5)
 
         self.f1 = torchmetrics.F1Score(task="multilabel", num_labels=num_classes, average=None)  # Per-label F1
         self.precision = torchmetrics.Precision(task="multilabel", num_labels=num_classes, average=None)
@@ -59,10 +60,12 @@ class VisionTransformerPretrained(L.LightningModule):
         x, y = batch 
 
         logits = self.forward(x)
-        y_hat = (torch.sigmoid(logits)>0.5).float() # we need to 
+        y_hat = (torch.sigmoid(logits)>0.5).float() # we need to think a bit more about this perhaps to identify overfitting properly  
 
         loss = self.loss_fn(logits, y.float())
-        acc = self.acc(y_hat, y)
+
+        self.acc.update(y_hat, y)
+        acc = self.acc.compute()
 
         return loss, acc, y_hat, y
     
@@ -76,7 +79,7 @@ class VisionTransformerPretrained(L.LightningModule):
     def validation_step(self, batch, batch_idx): 
         loss, acc, y_hat, y = self.step(batch)
 
-        self.log("valid_acc", acc, on_epoch = True, on_step = False)
+        self.log("exact_accuracy", acc, on_epoch = True, on_step = False)
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr = 1e-4)
