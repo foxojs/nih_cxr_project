@@ -20,4 +20,6 @@ data_exploration/tensorboard_logs/
 *.ckpt
 vit_pretrained_fine_tune/tensorboard_logs/nih_cxr_pretrained_vit/version_0/checkpoints/
 vit_pretrained_fine_tune/tensorboard_logs/nih_cxr_pretrained_vit/
+**/config.py
+
 */config.py
