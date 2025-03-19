@@ -67,6 +67,8 @@ def main(args):
 
     logger = CSVLogger("tensorboard_logs", name = 'nih_cxr_pretrained_vit')
 
+    log_dir = logger.log_dir
+
     #train 
     trainer = L.Trainer(devices = 1, max_epochs = config.NUM_EPOCHS, callbacks = [early_stopping], logger =logger)
     trainer.fit(model = model, train_dataloaders=train_dataloader, val_dataloaders = valid_dataloader)
@@ -78,7 +80,7 @@ def main(args):
     multi_label_evaluation(model, test_dataloader = test_dataloader, 
                            test_dataset = ds_test, logger = logger)
     
-    save_config(logger)
+    save_config(log_dir)
         
 
 if __name__ == "__main__":

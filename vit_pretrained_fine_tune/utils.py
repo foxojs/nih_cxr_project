@@ -8,7 +8,7 @@ import pandas as pd
 import logging
 from datasets import load_dataset
 
-def save_config(logger):
+def save_config(log_dir):
     config_values = pd.DataFrame({
         "IMAGE_SIZE":config.IMAGE_SIZE,
         "PATCH_SIZE": config.PATCH_SIZE,
@@ -20,8 +20,7 @@ def save_config(logger):
         "LEARNING_RATE": config.LEARNING_RATE,
         "NUM_EPOCHS": config.NUM_EPOCHS
     })
-
-    log_dir = logger.log_dir
+    print(f"the log directory is at: {log_dir}")
     os.makedirs(log_dir, exist_ok = True)
 
     config_file = os.path.join(log_dir, "run_configuration.csv")
