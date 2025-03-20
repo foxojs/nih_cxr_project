@@ -6,7 +6,7 @@ from tqdm import tqdm
 import pandas as pd 
 from sklearn.metrics import accuracy_score
 
-def multi_label_evaluation(model, test_dataloader, test_dataset, logger): 
+def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger): 
     model.eval()
     log_dir = logger.log_dir
     os.makedirs(log_dir, exist_ok = True)
@@ -17,6 +17,8 @@ def multi_label_evaluation(model, test_dataloader, test_dataset, logger):
     with torch.no_grad():
         for batch in tqdm(test_dataloader, desc = "Collecting logits"): 
             x, y = batch 
+            x = x.to(device)
+            y = y.to(device)
             logits = model(x)
             probs = torch.sigmoid(logits).cpu().numpy()
             all_true_labels.append(y.cpu().numpy())
@@ -83,11 +85,19 @@ def multi_label_evaluation(model, test_dataloader, test_dataset, logger):
     final_report = classification_report(all_true_labels, all_pred_labels, target_names=label_list, zero_division=0, output_dict=True)
     pd.DataFrame(final_report).to_csv(os.path.join(log_dir, "test_multi_metrics_per_label_threshold.csv"))
 
+    pd.DataFrame(all_pred_labels).to_csv(os.path.join(log_dir, "all_pred_labels.csv"))
+    pd.DataFrame(all_true_labels).to_csv(os.path.join(log_dir, "all_true_labels.csv"))
     # Compute and Save Exact Match Accuracy
     exact_match_accuracy = accuracy_score(all_true_labels, all_pred_labels)
     with open(os.path.join(log_dir, "exact_match_accuracy.txt"), "w") as f:
         f.write(f"Exact Match Accuracy: {exact_match_accuracy:.4f}\n")
     print(f"Exact Match Accuracy: {exact_match_accuracy:.4f}")
+
+
+    # now create relevant graphs
+
+    multi_metrics_per_label = pd.read_csv(os.path.join(log_dir, "test_multi_metrics_per_label_threshold.csv"), index_col=0)
+    print(multi_metrics_per_label)
 
 
 

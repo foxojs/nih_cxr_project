@@ -39,6 +39,15 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 def main(args): 
     L.seed_everything(42)
 
+    if torch.backends.mps.is_available():  # Check for Apple MPS (Mac GPUs)
+        device = torch.device("mps")
+        print("Using Apple Metal (MPS) backend")
+    elif torch.cuda.is_available():  # Check for NVIDIA GPU (CUDA)
+        device = torch.device("cuda")
+        print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
+    else:
+        device = torch.device("cpu")
+        print("Using CPU (No GPU available)")
 
     # set up data 
     datamodule = nih_cxr_datamodule(batch_size=8)
@@ -56,7 +65,9 @@ def main(args):
 
     log_dir = logger.log_dir
 
-    checkpoint_callback = ModelCheckpoint(dirpath=log_dir, monitor = "exact_accuracy")
+    checkpoint_callback = ModelCheckpoint(dirpath=log_dir, monitor = "val_multi_label_f1", 
+                                          save_on_train_epoch_end=True, save_top_k = 2, mode="max",
+                                          filename="best_model_{epoch}_{val_multi_label_f1}")
 
     #train 
     trainer = L.Trainer(devices = 1, max_epochs = config.NUM_EPOCHS, callbacks = [checkpoint_callback], logger =logger)
@@ -68,11 +79,12 @@ def main(args):
     # we want to set our threshold based on micro average due to class imbalance - use micro average f1 score 
 
     best_model_path = checkpoint_callback.best_model_path
+    
     best_model = VisionTransformerPretrained.load_from_checkpoint(best_model_path)
 
     ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "test[:20]") # note this is just for labels 
 
-    multi_label_evaluation(model = best_model, test_dataloader = test_dataloader, 
+    multi_label_evaluation(device, model = best_model, test_dataloader = test_dataloader, 
                            test_dataset = ds_test, logger = logger)
     
     save_config(log_dir)

@@ -1,4 +1,5 @@
 from datasets import load_dataset
+import torchmetrics.classification
 from tqdm import tqdm
 from datasets import Dataset
 import torch 
@@ -42,12 +43,7 @@ class VisionTransformerPretrained(L.LightningModule):
 
         #metrics 
 
-        self.acc = MultilabelAccuracy(threshold = 0.5)
-
-        self.f1 = torchmetrics.F1Score(task="multilabel", num_labels=num_classes, average=None)  # Per-label F1
-        self.precision = torchmetrics.Precision(task="multilabel", num_labels=num_classes, average=None)
-        self.recall = torchmetrics.Recall(task="multilabel", num_labels=num_classes, average=None)
-        self.accuracy = torchmetrics.Accuracy(task="multilabel", num_labels=num_classes, average=None)
+        self.multilabel_f1 = torchmetrics.classification.MultilabelF1Score(num_labels = 15, threshold = 0.5, average = "weighted")
 
 
 
@@ -64,23 +60,23 @@ class VisionTransformerPretrained(L.LightningModule):
 
         loss = self.loss_fn(logits, y.float())
 
-        self.acc.update(y_hat, y)
-        acc = self.acc.compute()
+        self.multilabel_f1.update(y_hat, y)
+        multi_label_f1 = self.multilabel_f1.compute()
 
-        return loss, acc, y_hat, y
+        return loss, multi_label_f1, y_hat, y
     
     def training_step(self, batch, batch_idx): 
-        loss, acc, y_hat, y = self.step(batch)
+        loss, val_multi_label_f1, y_hat, y = self.step(batch)
 
         self.log("train_loss", loss)
 
         return loss 
     
     def validation_step(self, batch, batch_idx): 
-        loss, acc, y_hat, y = self.step(batch)
+        loss, val_multi_label_f1, y_hat, y = self.step(batch)
 
-        self.log("exact_accuracy", acc, on_epoch = True, on_step = False)
+        self.log("val_multi_label_f1", val_multi_label_f1, on_epoch = True, on_step = False)
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr = 1e-4)
+        optimizer = optim.Adam(self.parameters(), lr = self.learning_rate)
         return optimizer 
