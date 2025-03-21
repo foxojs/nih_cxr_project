@@ -96,9 +96,5 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
 
     # now create relevant graphs
 
-    multi_metrics_per_label = pd.read_csv(os.path.join(log_dir, "test_multi_metrics_per_label_threshold.csv"), index_col=0)
-    print(multi_metrics_per_label)
-
-
 
 
