@@ -37,7 +37,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 # https://towardsdatascience.com/how-to-fine-tune-a-pretrained-vision-transformer-on-satellite-data-d0ddd8359596/#:~:text=Under%20the%20hood%2C%20the%20trainer,is%20completed%20within%20few%20epochs.
 
 def main(args): 
-    L.seed_everything(42)
+    L.seed_everything(42, workers = True)
 
     if torch.backends.mps.is_available():  # Check for Apple MPS (Mac GPUs)
         device = torch.device("mps")
@@ -55,7 +55,7 @@ def main(args):
     datamodule.setup()
 
     train_dataloader = datamodule.train_dataloader()
-    valid_dataloader = datamodule.valid_dataloader()
+    valid_dataloader = datamodule.val_dataloader()
     test_dataloader = datamodule.test_dataloader()
 
     # setup model 
@@ -70,11 +70,14 @@ def main(args):
                                           filename="best_model_{epoch}_{val_multi_label_f1}")
 
     #train 
-    trainer = L.Trainer(devices = config.NUM_GPU, max_epochs = config.NUM_EPOCHS, callbacks = [checkpoint_callback], logger =logger)
+    trainer = L.Trainer(devices = config.NUM_GPU, max_epochs = config.NUM_EPOCHS, callbacks = [checkpoint_callback], logger =logger, deterministic = True)
+
+    trainer.validate(model=model, datamodule=datamodule, verbose=True)
+
+
     trainer.fit(model = model, train_dataloaders=train_dataloader, val_dataloaders = valid_dataloader)
 
-    # load the saved model before evaluating 
-
+    # load the saved model before evaluating
     
     # we want to set our threshold based on micro average due to class imbalance - use micro average f1 score 
 
@@ -82,11 +85,18 @@ def main(args):
     
     best_model = VisionTransformerPretrained.load_from_checkpoint(best_model_path)
 
+
+    print(f"{best_model.__class__} is the best model being used")
+
     ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "test[:20]") # note this is just for labels 
 
     multi_label_evaluation(device, model = best_model, test_dataloader = test_dataloader, 
                            test_dataset = ds_test, logger = logger)
     
+    # quick check to make sure using checkpointed weights 
+    
+    trainer.validate(model=best_model, datamodule=datamodule, verbose=True) #maybe we weren't getting same results as trainer was non deterministic
+
     save_config(log_dir)
         
 

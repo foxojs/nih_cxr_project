@@ -143,7 +143,7 @@ class nih_cxr_datamodule(L.LightningDataModule):
         return DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, 
                           num_workers=config.NUM_WORKERS, persistent_workers=True)
     
-    def valid_dataloader(self): 
+    def val_dataloader(self): 
         return DataLoader(dataset = self.valid_data, batch_size = self.batch_size, shuffle = False, 
                           num_workers=config.NUM_WORKERS, persistent_workers=True)
     
