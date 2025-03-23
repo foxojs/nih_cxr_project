@@ -50,7 +50,7 @@ def main(args):
         print("Using CPU (No GPU available)")
 
     # set up data 
-    datamodule = nih_cxr_datamodule(batch_size=8)
+    datamodule = nih_cxr_datamodule(batch_size=config.BATCH_SIZE)
     datamodule.prepare_data()
     datamodule.setup()
 
@@ -70,7 +70,7 @@ def main(args):
                                           filename="best_model_{epoch}_{val_multi_label_f1}")
 
     #train 
-    trainer = L.Trainer(devices = 1, max_epochs = config.NUM_EPOCHS, callbacks = [checkpoint_callback], logger =logger)
+    trainer = L.Trainer(devices = config.NUM_GPU, max_epochs = config.NUM_EPOCHS, callbacks = [checkpoint_callback], logger =logger)
     trainer.fit(model = model, train_dataloaders=train_dataloader, val_dataloaders = valid_dataloader)
 
     # load the saved model before evaluating 
