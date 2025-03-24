@@ -76,6 +76,7 @@ class VisionTransformerPretrained(L.LightningModule):
         loss, val_multi_label_f1, y_hat, y = self.step(batch)
 
         self.log("val_multi_label_f1", val_multi_label_f1, on_epoch = True, on_step = False)
+        self.log("val_loss", loss, on_epoch=True, on_step=False)
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr = self.learning_rate)
