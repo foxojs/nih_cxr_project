@@ -79,14 +79,19 @@ def main(args):
 
     lr_finder = tuner.lr_find(model, train_dataloaders = train_dataloader, val_dataloaders = valid_dataloader)
 
-    # pull out the suggested learning rate 
+    # pull out the suggested learning rate, save the figure and value 
     suggested_lr = lr_finder.suggestion()
+
+    logger.log_metrics({"lr_find/suggested_lr": suggested_lr}, step=0)
 
     fig = lr_finder.plot(suggest=True)
     fig.savefig(os.path.join(log_dir, "lr_find.png"))
 
     model.learning_rate = suggested_lr
 
+
+
+    # fit our model 
     trainer.fit(model = model, train_dataloaders=train_dataloader, val_dataloaders = valid_dataloader)
     
     # we want to set our threshold based on micro average due to class imbalance - use micro average f1 score 
