@@ -66,9 +66,9 @@ def main(args):
 
     log_dir = logger.log_dir
 
-    checkpoint_callback = ModelCheckpoint(dirpath=log_dir, monitor = "val_multilabel_f1_macro", 
-                                          save_on_train_epoch_end=True, save_top_k = 2, mode="max",
-                                          filename="best_model_{epoch}_{val_multilabel_f1_macro}")
+    checkpoint_callback = ModelCheckpoint(dirpath=log_dir, monitor = "val_loss", 
+                                          save_on_train_epoch_end=True, save_top_k = 2, mode="min",
+                                          filename="best_model_{epoch}_{val_loss}")
 
     #train 
     trainer = L.Trainer(devices = config.NUM_GPU, max_epochs = config.NUM_EPOCHS, callbacks = [checkpoint_callback], logger =logger, deterministic = True)
