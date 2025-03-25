@@ -94,7 +94,34 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
     print(f"Exact Match Accuracy: {exact_match_accuracy:.4f}")
 
 
-    # now create relevant graphs
+    # ───── Per‑label cardinality threshold calibration ─────
+    true_freq = all_true_labels.mean(axis=0)
+    card_thresholds = {}
+
+    for i, label in enumerate(label_list):
+        best_t, min_diff = 0.0, float("inf")
+        for t in thresholds_to_test:
+            pred_freq = (all_pred_logits[:, i] >= t).mean()
+            diff = abs(pred_freq - true_freq[i])
+            if diff < min_diff:
+                best_t, min_diff = t, diff
+        card_thresholds[label] = best_t
+
+    # Save calibrated thresholds
+    pd.DataFrame.from_dict(card_thresholds, orient='index', columns=['cardinality_threshold']) \
+    .to_csv(os.path.join(log_dir, "cardinality_thresholds_per_label.csv"))
+
+    # Generate predictions using these thresholds
+    all_pred_labels_card = np.zeros_like(all_pred_logits, dtype=int)
+    for i, label in enumerate(label_list):
+        all_pred_labels_card[:, i] = (all_pred_logits[:, i] >= card_thresholds[label]).astype(int)
+
+    # Save a new classification report
+    report_card = classification_report(
+        all_true_labels, all_pred_labels_card,
+        target_names=label_list, zero_division=0, output_dict=True
+    )
+    pd.DataFrame(report_card).to_csv(os.path.join(log_dir, "test_multi_metrics_cardinality.csv"))
 
 
 def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_dataset, save_dir): 
@@ -183,6 +210,38 @@ def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_
     with open(os.path.join(log_dir, "exact_match_accuracy.txt"), "w") as f:
         f.write(f"Exact Match Accuracy: {exact_match_accuracy:.4f}\n")
     print(f"Exact Match Accuracy: {exact_match_accuracy:.4f}")
+
+
+    # ───── Per‑label cardinality threshold calibration ─────
+    true_freq = all_true_labels.mean(axis=0)
+    card_thresholds = {}
+
+    for i, label in enumerate(label_list):
+        best_t, min_diff = 0.0, float("inf")
+        for t in thresholds_to_test:
+            pred_freq = (all_pred_logits[:, i] >= t).mean()
+            diff = abs(pred_freq - true_freq[i])
+            if diff < min_diff:
+                best_t, min_diff = t, diff
+        card_thresholds[label] = best_t
+
+    # Save calibrated thresholds
+    pd.DataFrame.from_dict(card_thresholds, orient='index', columns=['cardinality_threshold']) \
+    .to_csv(os.path.join(log_dir, "cardinality_thresholds_per_label.csv"))
+
+    # Generate predictions using these thresholds
+    all_pred_labels_card = np.zeros_like(all_pred_logits, dtype=int)
+    for i, label in enumerate(label_list):
+        all_pred_labels_card[:, i] = (all_pred_logits[:, i] >= card_thresholds[label]).astype(int)
+
+    # Save a new classification report
+    report_card = classification_report(
+        all_true_labels, all_pred_labels_card,
+        target_names=label_list, zero_division=0, output_dict=True
+    )
+    pd.DataFrame(report_card).to_csv(os.path.join(log_dir, "test_multi_metrics_cardinality.csv"))
+
+
 
 
     # now create relevant graphs

@@ -65,14 +65,12 @@ def main(args):
 
     log_dir = logger.log_dir
 
-    checkpoint_callback = ModelCheckpoint(dirpath=log_dir, monitor = "val_multi_label_f1", 
+    checkpoint_callback = ModelCheckpoint(dirpath=log_dir, monitor = "val_multilabel_f1_macro", 
                                           save_on_train_epoch_end=True, save_top_k = 2, mode="max",
-                                          filename="best_model_{epoch}_{val_multi_label_f1}")
+                                          filename="best_model_{epoch}_{val_multilabel_f1_macro}")
 
     #train 
     trainer = L.Trainer(devices = config.NUM_GPU, max_epochs = config.NUM_EPOCHS, callbacks = [checkpoint_callback], logger =logger, deterministic = True)
-
-    trainer.validate(model=model, datamodule=datamodule, verbose=True)
 
 
     trainer.fit(model = model, train_dataloaders=train_dataloader, val_dataloaders = valid_dataloader)
@@ -95,8 +93,6 @@ def main(args):
     
     # quick check to make sure using checkpointed weights 
     
-    trainer.validate(model=best_model, datamodule=datamodule, verbose=True) #maybe we weren't getting same results as trainer was non deterministic
-
     save_config(log_dir)
         
 

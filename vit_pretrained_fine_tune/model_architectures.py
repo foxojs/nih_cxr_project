@@ -43,7 +43,9 @@ class VisionTransformerPretrained(L.LightningModule):
 
         #metrics 
 
-        self.multilabel_f1 = torchmetrics.classification.MultilabelF1Score(num_labels = 15, threshold = 0.5, average = "weighted")
+        self.multilabel_f1_weighted = torchmetrics.classification.MultilabelF1Score(num_labels = 15, threshold = 0.5, average = "weighted")
+        self.multilabel_f1_micro = torchmetrics.classification.MultilabelF1Score(num_labels=15, threshold = 0.5, average = "micro")
+        self.multilabel_f1_macro = torchmetrics.classification.MultilabelF1Score(num_labels = 15, threshold=0.5, average="macro")
 
 
 
@@ -60,23 +62,34 @@ class VisionTransformerPretrained(L.LightningModule):
 
         loss = self.loss_fn(logits, y.float())
 
-        self.multilabel_f1.update(y_hat, y)
-        multi_label_f1 = self.multilabel_f1.compute()
+        self.multilabel_f1_weighted.update(y_hat, y)
+        multilabel_f1_weighted = self.multilabel_f1_weighted.compute()
 
-        return loss, multi_label_f1, y_hat, y
+        self.multilabel_f1_micro.update(y_hat, y)
+        multilabel_f1_micro = self.multilabel_f1_micro.compute()
+
+        self.multilabel_f1_macro.update(y_hat, y)
+        multilabel_f1_macro = self.multilabel_f1_macro.compute()
+
+        return loss, multilabel_f1_weighted, multilabel_f1_micro, multilabel_f1_macro, y_hat, y
     
     def training_step(self, batch, batch_idx): 
-        loss, val_multi_label_f1, y_hat, y = self.step(batch)
+        loss, multilabel_f1_weighted, multilabel_f1_micro, multilabel_f1_macro, y_hat, y = self.step(batch)
 
         self.log("train_loss", loss)
+        self.log("multilabel_f1_weighted", multilabel_f1_weighted, on_epoch=True, on_step=False)
+        self.log("multilabel_f1_micro", multilabel_f1_micro, on_epoch=True, on_step=False)
+        self.log("multilabel_f1_macro", multilabel_f1_macro, on_epoch=True, on_step=False)
 
         return loss 
     
     def validation_step(self, batch, batch_idx): 
-        loss, val_multi_label_f1, y_hat, y = self.step(batch)
+        loss, multilabel_f1_weighted, multilabel_f1_micro, multilabel_f1_macro, y_hat, y = self.step(batch)
 
-        self.log("val_multi_label_f1", val_multi_label_f1, on_epoch = True, on_step = False)
+        self.log("val_multilabel_f1_weighted", multilabel_f1_weighted, on_epoch = True, on_step = False)
         self.log("val_loss", loss, on_epoch=True, on_step=False)
+        self.log("val_multilabel_f1_micro", multilabel_f1_micro, on_epoch=True, on_step=False)
+        self.log("val_multilabel_f1_macro", multilabel_f1_macro, on_epoch=True, on_step=False)
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr = self.learning_rate)
