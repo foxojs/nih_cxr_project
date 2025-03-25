@@ -30,6 +30,7 @@ from custom_datasets import nih_cxr_datamodule
 import config 
 from utils import save_config
 from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.tuner import Tuner
 
 
 # continue using pytorch ligthing to fine tune model as per 
@@ -59,7 +60,7 @@ def main(args):
     test_dataloader = datamodule.test_dataloader()
 
     # setup model 
-    model = VisionTransformerPretrained('google/vit-base-patch16-224', datamodule.num_classes, learning_rate= 1e-4)
+    model = VisionTransformerPretrained('google/vit-base-patch16-224', datamodule.num_classes, learning_rate=config.LEARNING_RATE)
 
     logger = CSVLogger("tensorboard_logs", name = 'nih_cxr_pretrained_vit')
 
@@ -72,10 +73,21 @@ def main(args):
     #train 
     trainer = L.Trainer(devices = config.NUM_GPU, max_epochs = config.NUM_EPOCHS, callbacks = [checkpoint_callback], logger =logger, deterministic = True)
 
+    # find the optimal learning rate by doing learning rate scheduling (this is important to mention in the presentation)
+
+    tuner = Tuner(trainer)
+
+    lr_finder = tuner.lr_find(model, train_dataloaders = train_dataloader, val_dataloaders = valid_dataloader)
+
+    # pull out the suggested learning rate 
+    suggested_lr = lr_finder.suggestion()
+
+    fig = lr_finder.plot(suggest=True)
+    fig.savefig(os.path.join(log_dir, "lr_find.png"))
+
+    model.learning_rate = suggested_lr
 
     trainer.fit(model = model, train_dataloaders=train_dataloader, val_dataloaders = valid_dataloader)
-
-    # load the saved model before evaluating
     
     # we want to set our threshold based on micro average due to class imbalance - use micro average f1 score 
 

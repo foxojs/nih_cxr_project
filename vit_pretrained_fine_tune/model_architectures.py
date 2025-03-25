@@ -22,13 +22,14 @@ from torch.nn import functional as F
 from torch import optim 
 import torchmetrics 
 from torcheval.metrics import MultilabelAccuracy
+import config
 
 import lightning as L
 
 class VisionTransformerPretrained(L.LightningModule): 
     '''wrapper for the pretrained vision transformers'''
 
-    def __init__(self, model = "google/vit-base-patch16-224", num_classes = 15, learning_rate = 1e-4):
+    def __init__(self, model = "google/vit-base-patch16-224", num_classes = 15, learning_rate = config.LEARNING_RATE):
 
         super().__init__()
         self.learning_rate = learning_rate 
