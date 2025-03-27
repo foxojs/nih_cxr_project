@@ -50,6 +50,8 @@ def main(args):
         device = torch.device("cpu")
         print("Using CPU (No GPU available)")
 
+    ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "test[:20]") # note this is just for labels 
+
     # set up data 
     datamodule = nih_cxr_datamodule(batch_size=config.BATCH_SIZE)
     datamodule.prepare_data()
@@ -60,7 +62,7 @@ def main(args):
     test_dataloader = datamodule.test_dataloader()
 
     # setup model 
-    model = VisionTransformerPretrained('google/vit-base-patch16-224', datamodule.num_classes, learning_rate=config.LEARNING_RATE)
+    model = VisionTransformerPretrained('google/vit-base-patch16-224', datamodule.num_classes, learning_rate=config.LEARNING_RATE, test_dataset=ds_test)
 
     logger = CSVLogger("tensorboard_logs", name = 'nih_cxr_pretrained_vit')
 
@@ -103,7 +105,6 @@ def main(args):
 
     print(f"{best_model.__class__} is the best model being used")
 
-    ds_test = load_dataset("alkzar90/NIH-Chest-X-ray-dataset", 'image-classification', split = "test[:20]") # note this is just for labels 
 
     multi_label_evaluation(device, model = best_model, test_dataloader = test_dataloader, 
                            test_dataset = ds_test, logger = logger)

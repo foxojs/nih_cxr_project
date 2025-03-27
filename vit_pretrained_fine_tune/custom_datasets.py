@@ -114,14 +114,23 @@ class nih_cxr_datamodule(L.LightningDataModule):
         self.batch_size = batch_size 
         self.num_classes = config.NUM_CLASSES
 
-    def setup(self, stage = None):
+    def setup(self, stage = None, image_augmentations = config.IMAGE_AUGMENTATION):
         '''set up the dataset, train/valid/test all at once'''
 
-        transforms = v2.Compose([v2.ToImage(),
+        if image_augmentations: 
+            transforms = v2.Compose([v2.ToImage(),
                                  v2.Resize(size=config.IMAGE_SIZE, interpolation=2),
                                  v2.Grayscale(num_output_channels=3), # need to ensure 3 channel grayscale for vit 
                                  v2.ToDtype(torch.float32, scale=True),
                                  v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                                ])
+        else: 
+            transforms = v2.Compose([v2.ToImage(),
+                                 v2.Resize(size=config.IMAGE_SIZE, interpolation=2),
+                                 v2.Grayscale(num_output_channels=3), # need to ensure 3 channel grayscale for vit 
+                                 v2.ToDtype(torch.float32, scale=True),
+                                 v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]), 
+                                 v2.RandomInvert
                                 ])
         
         ds_train = load_dataset(self.data_root, 'image-classification', split = config.DS_TRAIN_SIZE)
