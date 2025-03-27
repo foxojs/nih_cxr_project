@@ -1,4 +1,4 @@
-#PBS -l walltime=12:00:00
+#PBS -l walltime=9:00:00
 #PBS -l select=1:ncpus=30:mem=130gb:ngpus=1:gpu_type=RTX6000
 #PBS -N nih_cxr_gpu
 
