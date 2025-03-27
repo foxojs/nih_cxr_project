@@ -114,6 +114,20 @@ class nih_cxr_datamodule(L.LightningDataModule):
         self.batch_size = batch_size 
         self.num_classes = config.NUM_CLASSES
 
+    @staticmethod
+    def compute_pos_weights(dataset, num_classes): 
+        counts = torch.zeros(num_classes)
+
+        for i in range(len(dataset)): 
+            labels = dataset[i]['labels']
+            for label in labels: 
+                counts[label] += 1
+        
+        total_samples = len(dataset)
+        counts = torch.clamp(counts, min=1)
+        pos_weights = (total_samples - counts) / counts
+        return pos_weights 
+
     def setup(self, stage = None, image_augmentations = config.IMAGE_AUGMENTATION):
         '''set up the dataset, train/valid/test all at once'''
 
@@ -122,15 +136,15 @@ class nih_cxr_datamodule(L.LightningDataModule):
                                  v2.Resize(size=config.IMAGE_SIZE, interpolation=2),
                                  v2.Grayscale(num_output_channels=3), # need to ensure 3 channel grayscale for vit 
                                  v2.ToDtype(torch.float32, scale=True),
-                                 v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                                 v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                                 v2.RandAugment()
                                 ])
         else: 
             transforms = v2.Compose([v2.ToImage(),
                                  v2.Resize(size=config.IMAGE_SIZE, interpolation=2),
                                  v2.Grayscale(num_output_channels=3), # need to ensure 3 channel grayscale for vit 
                                  v2.ToDtype(torch.float32, scale=True),
-                                 v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]), 
-                                 v2.RandomInvert
+                                 v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                 ])
         
         ds_train = load_dataset(self.data_root, 'image-classification', split = config.DS_TRAIN_SIZE)
@@ -147,6 +161,9 @@ class nih_cxr_datamodule(L.LightningDataModule):
         self.valid_data = HuggingFaceCXR(ds_valid, image_size = config.IMAGE_SIZE, transform = transforms)
         self.test_data = HuggingFaceCXR(ds_test, image_size = config.IMAGE_SIZE, transform = transforms)
 
+        # calculate pos_weight before wrapping in huggingface CXR
+        self.pos_weights = self.compute_pos_weights(ds_train, self.num_classes)
+
 
     def train_dataloader(self): 
         return DataLoader(self.train_data, batch_size = self.batch_size, shuffle = True, 
@@ -160,4 +177,5 @@ class nih_cxr_datamodule(L.LightningDataModule):
         return DataLoader(self.test_data, batch_size = self.batch_size, 
                           shuffle = False, num_workers=config.NUM_WORKERS, 
                           persistent_workers=True)
+    
         

@@ -30,23 +30,31 @@ import lightning as L
 class VisionTransformerPretrained(L.LightningModule): 
     '''wrapper for the pretrained vision transformers'''
 
-    def __init__(self, model = "google/vit-base-patch16-224", num_classes = 15, learning_rate = config.LEARNING_RATE, test_dataset = None):
+    def __init__(self, model = "google/vit-base-patch16-224", 
+                 num_classes = 15, 
+                 learning_rate = config.LEARNING_RATE, 
+                 test_dataset = None,
+                 pos_weights = None):
 
         super().__init__()
         self.learning_rate = learning_rate 
         self.num_classes = num_classes
-        backbone = ViTForImageClassification.from_pretrained(model, 
+        self.backbone = ViTForImageClassification.from_pretrained(model, 
                                                              num_labels = num_classes, 
                                                              ignore_mismatched_sizes=True)
         
-        self.backbone = backbone 
-
-        self.loss_fn = nn.BCEWithLogitsLoss() # adjusted for our task of multilabel 
-
         if test_dataset is not None:
             self.label_names = test_dataset.features['labels'].feature.names
         else:
             self.label_names = [f"label_{i}" for i in range(num_classes)]
+
+        if pos_weights is not None: 
+            self.register_buffer("pos_weights", pos_weights, persistent=False)
+            self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=self.pos_weights)
+        else: 
+            self.loss_fn = nn.BCEWithLogitsLoss()
+        
+
 
 
         #metrics 
@@ -98,7 +106,7 @@ class VisionTransformerPretrained(L.LightningModule):
 
         
         self.log("train_loss", loss)
-        self.log("brier_score", brier_score)
+        self.log("brier_score", brier_score, on_epoch = True, on_step = False)
         self.log("multilabel_f1_weighted", multilabel_f1_weighted, on_epoch=True, on_step=False)
         self.log("multilabel_f1_micro", multilabel_f1_micro, on_epoch=True, on_step=False)
         self.log("multilabel_f1_macro", multilabel_f1_macro, on_epoch=True, on_step=False)

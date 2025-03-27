@@ -62,7 +62,11 @@ def main(args):
     test_dataloader = datamodule.test_dataloader()
 
     # setup model 
-    model = VisionTransformerPretrained('google/vit-base-patch16-224', datamodule.num_classes, learning_rate=config.LEARNING_RATE, test_dataset=ds_test)
+    model = VisionTransformerPretrained('google/vit-base-patch16-224', 
+                                        datamodule.num_classes, 
+                                        learning_rate=config.LEARNING_RATE, 
+                                        test_dataset=ds_test, 
+                                        pos_weights=datamodule.pos_weights) #note how we use a weighting on our labels for the loss 
 
     logger = CSVLogger("tensorboard_logs", name = 'nih_cxr_pretrained_vit')
 
@@ -89,7 +93,8 @@ def main(args):
     fig = lr_finder.plot(suggest=True)
     fig.savefig(os.path.join(log_dir, "lr_find.png"))
 
-    model.learning_rate = suggested_lr
+    if suggested_lr != 0: 
+        model.learning_rate = suggested_lr
 
 
 
@@ -100,7 +105,7 @@ def main(args):
 
     best_model_path = checkpoint_callback.best_model_path
     
-    best_model = VisionTransformerPretrained.load_from_checkpoint(best_model_path)
+    best_model = VisionTransformerPretrained.load_from_checkpoint(best_model_path, strict=False)
 
 
     print(f"{best_model.__class__} is the best model being used")
