@@ -12,7 +12,7 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
     os.makedirs(log_dir, exist_ok = True)
 
     all_true_labels = []
-    all_pred_logits = []
+    all_pred_probs = []
 
     with torch.no_grad():
         for batch in tqdm(test_dataloader, desc = "Collecting logits"): 
@@ -22,10 +22,10 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
             logits = model(x)
             probs = torch.sigmoid(logits).cpu().numpy()
             all_true_labels.append(y.cpu().numpy())
-            all_pred_logits.append(probs) # store these so we can assess different thresholds quickly 
+            all_pred_probs.append(probs) # store these so we can assess different thresholds quickly 
 
     all_true_labels = np.vstack(all_true_labels)
-    all_pred_logits = np.vstack(all_pred_logits)
+    all_pred_logits = np.vstack(all_pred_probs)
 
     label_list = test_dataset.features['labels'].feature.names
 
@@ -41,19 +41,19 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
     for i, label in tqdm(enumerate(label_list), desc="Evaluating AUC, ROC, PR"):
         try:
             # ROC 
-            fpr, tpr, _ = roc_curve(all_true_labels[:, i], all_pred_logits[:, i])
-            auc_per_label[label] = roc_auc_score(all_true_labels[:, i], all_pred_logits[:, i])
+            fpr, tpr, _ = roc_curve(all_true_labels[:, i], all_pred_probs[:, i])
+            auc_per_label[label] = roc_auc_score(all_true_labels[:, i], all_pred_probs[:, i])
             pd.DataFrame({'fpr': fpr, 'tpr': tpr}).to_csv(os.path.join(log_dir, f"roc_curve_{label}.csv"), index=False)
             
             # Precision-Recall curve (imbalanced dataset)
-            precision, recall, _ = precision_recall_curve(all_true_labels[:, i], all_pred_logits[:, i])
+            precision, recall, _ = precision_recall_curve(all_true_labels[:, i], all_pred_probs[:, i])
             pr_auc_per_label[label] = auc(recall, precision)
             pd.DataFrame({'precision': precision, 'recall': recall}).to_csv(os.path.join(log_dir, f"pr_curve_{label}.csv"), index=False)
 
             # find best threshold using f1 score 
             best_f1, best_t = 0, 0 
             for t in thresholds_to_test:
-                preds = (all_pred_logits[:, i] >= t).astype(int)
+                preds = (all_pred_probs[:, i] >= t).astype(int)
                 f1 = f1_score(all_true_labels[:, i], preds)
                 if f1 > best_f1: 
                     best_f1 = f1
@@ -87,6 +87,9 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
 
     pd.DataFrame(all_pred_labels).to_csv(os.path.join(log_dir, "all_pred_labels.csv"))
     pd.DataFrame(all_true_labels).to_csv(os.path.join(log_dir, "all_true_labels.csv"))
+
+    # save our logits as well for calibration exploration 
+    pd.DataFrame(all_pred_probs).to_csv(os.path.join(log_dir, "all_pred_probs.csv"))
     # Compute and Save Exact Match Accuracy
     exact_match_accuracy = accuracy_score(all_true_labels, all_pred_labels)
     with open(os.path.join(log_dir, "exact_match_accuracy.txt"), "w") as f:
@@ -130,7 +133,7 @@ def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_
     os.makedirs(log_dir, exist_ok = True)
 
     all_true_labels = []
-    all_pred_logits = []
+    all_pred_probs = []
 
     with torch.no_grad():
         for batch in tqdm(test_dataloader, desc = "Collecting logits"): 
@@ -140,10 +143,10 @@ def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_
             logits = model(x)
             probs = torch.sigmoid(logits).cpu().numpy()
             all_true_labels.append(y.cpu().numpy())
-            all_pred_logits.append(probs) # store these so we can assess different thresholds quickly 
+            all_pred_probs.append(probs) # store these so we can assess different thresholds quickly 
 
     all_true_labels = np.vstack(all_true_labels)
-    all_pred_logits = np.vstack(all_pred_logits)
+    all_pred_probs = np.vstack(all_pred_probs)
 
     label_list = test_dataset.features['labels'].feature.names
 
@@ -159,19 +162,19 @@ def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_
     for i, label in tqdm(enumerate(label_list), desc="Evaluating AUC, ROC, PR"):
         try:
             # ROC 
-            fpr, tpr, _ = roc_curve(all_true_labels[:, i], all_pred_logits[:, i])
-            auc_per_label[label] = roc_auc_score(all_true_labels[:, i], all_pred_logits[:, i])
+            fpr, tpr, _ = roc_curve(all_true_labels[:, i], all_pred_probs[:, i])
+            auc_per_label[label] = roc_auc_score(all_true_labels[:, i], all_pred_probs[:, i])
             pd.DataFrame({'fpr': fpr, 'tpr': tpr}).to_csv(os.path.join(log_dir, f"roc_curve_{label}.csv"), index=False)
             
             # Precision-Recall curve (imbalanced dataset)
-            precision, recall, _ = precision_recall_curve(all_true_labels[:, i], all_pred_logits[:, i])
+            precision, recall, _ = precision_recall_curve(all_true_labels[:, i], all_pred_probs[:, i])
             pr_auc_per_label[label] = auc(recall, precision)
             pd.DataFrame({'precision': precision, 'recall': recall}).to_csv(os.path.join(log_dir, f"pr_curve_{label}.csv"), index=False)
 
             # find best threshold using f1 score 
             best_f1, best_t = 0, 0 
             for t in thresholds_to_test:
-                preds = (all_pred_logits[:, i] >= t).astype(int)
+                preds = (all_pred_probs[:, i] >= t).astype(int)
                 f1 = f1_score(all_true_labels[:, i], preds)
                 if f1 > best_f1: 
                     best_f1 = f1
@@ -194,9 +197,9 @@ def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_
 
 
     # Apply Best Thresholds to Generate Final Predictions
-    all_pred_labels = np.zeros_like(all_pred_logits)
+    all_pred_labels = np.zeros_like(all_pred_probs)
     for i, label in enumerate(label_list):
-        all_pred_labels[:, i] = (all_pred_logits[:, i] >= best_thresholds[label]).astype(int)
+        all_pred_labels[:, i] = (all_pred_probs[:, i] >= best_thresholds[label]).astype(int)
 
 
     # Save Classification Report
@@ -205,6 +208,9 @@ def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_
 
     pd.DataFrame(all_pred_labels).to_csv(os.path.join(log_dir, "all_pred_labels.csv"))
     pd.DataFrame(all_true_labels).to_csv(os.path.join(log_dir, "all_true_labels.csv"))
+
+    # and the probs 
+    pd.DataFrame(all_pred_probs).to_csv(os.path.join(log_dir, "all_pred_probs.csv"))
     # Compute and Save Exact Match Accuracy
     exact_match_accuracy = accuracy_score(all_true_labels, all_pred_labels)
     with open(os.path.join(log_dir, "exact_match_accuracy.txt"), "w") as f:
@@ -219,7 +225,7 @@ def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_
     for i, label in enumerate(label_list):
         best_t, min_diff = 0.0, float("inf")
         for t in thresholds_to_test:
-            pred_freq = (all_pred_logits[:, i] >= t).mean()
+            pred_freq = (all_pred_probs[:, i] >= t).mean()
             diff = abs(pred_freq - true_freq[i])
             if diff < min_diff:
                 best_t, min_diff = t, diff
@@ -230,9 +236,9 @@ def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_
     .to_csv(os.path.join(log_dir, "cardinality_thresholds_per_label.csv"))
 
     # Generate predictions using these thresholds
-    all_pred_labels_card = np.zeros_like(all_pred_logits, dtype=int)
+    all_pred_labels_card = np.zeros_like(all_pred_probs, dtype=int)
     for i, label in enumerate(label_list):
-        all_pred_labels_card[:, i] = (all_pred_logits[:, i] >= card_thresholds[label]).astype(int)
+        all_pred_labels_card[:, i] = (all_pred_probs[:, i] >= card_thresholds[label]).astype(int)
 
     # Save a new classification report
     report_card = classification_report(
