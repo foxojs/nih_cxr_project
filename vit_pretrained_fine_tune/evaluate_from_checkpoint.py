@@ -34,7 +34,7 @@ def evaluate_from_checkpoint(version_to_evaluate, ckpt_name_to_evaluate = str(),
     best_model_path = os.path.join(f"tensorboard_logs/nih_cxr_pretrained_vit/version_{version_to_evaluate}/{ckpt_name_to_evaluate}")
 
 
-    best_model = VisionTransformerPretrained.load_from_checkpoint(best_model_path)
+    best_model = VisionTransformerPretrained.load_from_checkpoint(best_model_path, strict=False)
 
 
     # set up data 
