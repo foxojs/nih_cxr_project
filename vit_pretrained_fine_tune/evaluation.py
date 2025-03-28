@@ -25,7 +25,7 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
             all_pred_probs.append(probs) # store these so we can assess different thresholds quickly 
 
     all_true_labels = np.vstack(all_true_labels)
-    all_pred_logits = np.vstack(all_pred_probs)
+    all_pred_probs = np.vstack(all_pred_probs)
 
     label_list = test_dataset.features['labels'].feature.names
 
@@ -76,9 +76,9 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
 
 
     # Apply Best Thresholds to Generate Final Predictions
-    all_pred_labels = np.zeros_like(all_pred_logits)
+    all_pred_labels = np.zeros_like(all_pred_probs)
     for i, label in enumerate(label_list):
-        all_pred_labels[:, i] = (all_pred_logits[:, i] >= best_thresholds[label]).astype(int)
+        all_pred_labels[:, i] = (all_pred_probs[:, i] >= best_thresholds[label]).astype(int)
 
 
     # Save Classification Report
@@ -104,7 +104,7 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
     for i, label in enumerate(label_list):
         best_t, min_diff = 0.0, float("inf")
         for t in thresholds_to_test:
-            pred_freq = (all_pred_logits[:, i] >= t).mean()
+            pred_freq = (all_pred_probs[:, i] >= t).mean()
             diff = abs(pred_freq - true_freq[i])
             if diff < min_diff:
                 best_t, min_diff = t, diff
@@ -115,9 +115,9 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
     .to_csv(os.path.join(log_dir, "cardinality_thresholds_per_label.csv"))
 
     # Generate predictions using these thresholds
-    all_pred_labels_card = np.zeros_like(all_pred_logits, dtype=int)
+    all_pred_labels_card = np.zeros_like(all_pred_probs, dtype=int)
     for i, label in enumerate(label_list):
-        all_pred_labels_card[:, i] = (all_pred_logits[:, i] >= card_thresholds[label]).astype(int)
+        all_pred_labels_card[:, i] = (all_pred_probs[:, i] >= card_thresholds[label]).astype(int)
 
     # Save a new classification report
     report_card = classification_report(
