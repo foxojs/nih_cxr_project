@@ -5,8 +5,65 @@ import numpy as np
 from tqdm import tqdm 
 import pandas as pd 
 from sklearn.metrics import accuracy_score
+from sklearn.linear_model import LogisticRegression
+from utils import IdentityCalibrator
 
-def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger): 
+def calibrate_vision_transformer(valid_dataloader, best_model, logger, device): 
+    """
+    Fits a logistic regression model to our validation data using outputs from best model: 
+
+    - Inference on the validation data 
+    - Obtain logits for validation data 
+    - pass logits as x in to logistic regression in a one v rest approach 
+    - returns: multiple fitted logistic regression model for each label and also calibrated 
+    
+    """
+
+    best_model.eval()
+    log_dir = logger.log_dir
+    os.makedirs(log_dir, exist_ok = True)
+
+    all_true_labels = []
+    all_pred_probs = []
+
+    with torch.no_grad():
+        for batch in tqdm(valid_dataloader, desc = "collecting logits"):
+            x, y = batch 
+            x = x.to(device)
+            y = y.to(device)
+            logits = best_model(x)
+            all_pred_probs.append(torch.sigmoid(logits).cpu().numpy())
+            all_true_labels.append(y.cpu().numpy())
+
+    all_true_labels = np.vstack(all_true_labels)
+    all_pred_probs = np.vstack(all_pred_probs)
+
+    num_classes = all_true_labels.shape[1]
+    calibrators = []
+    for i in range(num_classes): 
+
+        X = all_pred_probs[:, i].reshape(-1, 1)
+        y = all_true_labels[:, i]
+
+        if len(np.unique(y)) < 2:
+            print(f"Label {i}: only one class in validation — using identity calibrator.")
+            calibrator = IdentityCalibrator()
+            calibrator.fit(X, y)
+        else:
+            calibrator = LogisticRegression(solver="lbfgs")
+            calibrator.fit(X, y)
+        
+        calibrators.append(calibrator)
+
+    return calibrators 
+
+
+def multi_label_evaluation(device, 
+                           model, 
+                           test_dataloader, 
+                           test_dataset, 
+                           logger, 
+                           calibrators: list[LogisticRegression] = None): 
     model.eval()
     log_dir = logger.log_dir
     os.makedirs(log_dir, exist_ok = True)
@@ -27,9 +84,28 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
     all_true_labels = np.vstack(all_true_labels)
     all_pred_probs = np.vstack(all_pred_probs)
 
+    pd.DataFrame(all_pred_probs, columns=test_dataset.features['labels'].feature.names).to_csv(os.path.join(log_dir, "all_pred_probs.csv"), 
+                                                                                               index = False)
+
     label_list = test_dataset.features['labels'].feature.names
 
     # compute auc per label (remember labels are in the same order as our 1d one hot encoded array)
+
+    # if calibrators provided, transform each columns 
+    if calibrators is not None: 
+        calibrated = np.zeros_like(all_pred_probs)
+
+        for i, lr in enumerate(calibrators): 
+            X = all_pred_probs[:, i].reshape(-1, 1)
+
+            calibrated[:, i] = lr.predict_proba(X)[:, 1]
+            print(f"This is calibrated {calibrated}")
+        all_pred_probs_calibrated = calibrated 
+        
+    pd.DataFrame(all_pred_probs_calibrated, 
+                 columns=test_dataset.features['labels'].feature.names).to_csv(os.path.join(log_dir, "all_pred_probs_calibrated.csv"), 
+                                                                               index = False)
+
 
     auc_per_label = {}
     pr_auc_per_label = {}
@@ -88,8 +164,6 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
     pd.DataFrame(all_pred_labels).to_csv(os.path.join(log_dir, "all_pred_labels.csv"))
     pd.DataFrame(all_true_labels).to_csv(os.path.join(log_dir, "all_true_labels.csv"))
 
-    # save our logits as well for calibration exploration 
-    pd.DataFrame(all_pred_probs).to_csv(os.path.join(log_dir, "all_pred_probs.csv"))
     # Compute and Save Exact Match Accuracy
     exact_match_accuracy = accuracy_score(all_true_labels, all_pred_labels)
     with open(os.path.join(log_dir, "exact_match_accuracy.txt"), "w") as f:
@@ -125,6 +199,11 @@ def multi_label_evaluation(device, model, test_dataloader, test_dataset, logger)
         target_names=label_list, zero_division=0, output_dict=True
     )
     pd.DataFrame(report_card).to_csv(os.path.join(log_dir, "test_multi_metrics_cardinality.csv"))
+
+
+
+
+
 
 
 def multi_label_evaluation_from_checkpoint(device, model, test_dataloader, test_dataset, save_dir): 

@@ -27,4 +27,11 @@ def save_config(log_dir):
     config_values.to_csv(config_file, index = False)
 
 
+# to return just our raw probabilities if logistic regression can't be fit. 
+class IdentityCalibrator:
+    def fit(self, X, y):
+        return self  # fit does nothing
 
+    def predict_proba(self, X):
+        # Ensure it returns shape (n_samples, 2) like sklearn
+        return np.hstack([1 - X, X])

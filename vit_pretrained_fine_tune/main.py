@@ -31,6 +31,7 @@ import config
 from utils import save_config
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.tuner import Tuner
+from evaluation import calibrate_vision_transformer
 
 
 # continue using pytorch ligthing to fine tune model as per 
@@ -107,12 +108,15 @@ def main(args):
     
     best_model = VisionTransformerPretrained.load_from_checkpoint(best_model_path, strict=False)
 
+    calibrators = calibrate_vision_transformer(valid_dataloader, best_model, logger, device)
 
     print(f"{best_model.__class__} is the best model being used")
 
 
+
+
     multi_label_evaluation(device, model = best_model, test_dataloader = test_dataloader, 
-                           test_dataset = ds_test, logger = logger)
+                           test_dataset = ds_test, logger = logger, calibrators = calibrators)
     
     # quick check to make sure using checkpointed weights 
     
