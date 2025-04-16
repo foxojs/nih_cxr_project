@@ -100,9 +100,9 @@ def multi_label_evaluation(device,
 
             calibrated[:, i] = lr.predict_proba(X)[:, 1]
             print(f"This is calibrated {calibrated}")
-        all_pred_probs_calibrated = calibrated 
+        print(f"This is calibrated after loop {calibrated}")
         
-    pd.DataFrame(all_pred_probs_calibrated, 
+    pd.DataFrame(calibrated, 
                  columns=test_dataset.features['labels'].feature.names).to_csv(os.path.join(log_dir, "all_pred_probs_calibrated.csv"), 
                                                                                index = False)
 
