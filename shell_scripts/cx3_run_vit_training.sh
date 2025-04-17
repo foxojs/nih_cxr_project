@@ -1,4 +1,4 @@
-#PBS -l walltime=12:00:00
+#PBS -l walltime=6:00:00
 #PBS -l select=1:ncpus=30:mem=100gb:ngpus=1
 #PBS -N cx3_nih_gpu
 
