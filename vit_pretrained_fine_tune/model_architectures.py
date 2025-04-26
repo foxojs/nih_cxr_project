@@ -68,7 +68,13 @@ class VisionTransformerPretrained(L.LightningModule):
 
 
     def forward(self, x): 
-        return self.backbone(x).logits
+    # Extract logits from the output tuple
+        output = self.backbone(x)
+        if isinstance(output, tuple):  # Check if output is a tuple
+            logits = output[0]  # Extract the first element (logits)
+        else:
+            logits = output.logits  # If not a tuple, directly access logits
+        return logits
     
     def step(self, batch, stage = "train"):
         '''Any step proccesses to return loss and predictions'''
